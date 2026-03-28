@@ -17,6 +17,7 @@
             .form-card { padding: 16px; }
             .form-row { grid-template-columns: 1fr !important; }
             .form-row-2 { grid-template-columns: 1fr !important; }
+            .batch-range-wrap { grid-template-columns: 1fr !important; }
         }
         
         .header {
@@ -159,6 +160,33 @@
             color: #888;
         }
 
+        .batch-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .batch-range-wrap {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .batch-save-btn {
+            border: none;
+            background: #1976d2;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .batch-save-btn:hover {
+            opacity: 0.92;
+        }
+
         .batch-table-wrap {
             overflow-x: auto;
         }
@@ -222,6 +250,13 @@
             grid-template-columns: 1fr auto 1fr auto;
             gap: 6px;
             align-items: center;
+        }
+
+        .batch-shift-box {
+            border: 1px solid #cfd8dc;
+            border-radius: 10px;
+            padding: 10px;
+            background: #fcfdff;
         }
 
         .batch-actual input {
@@ -365,6 +400,16 @@
             border-color: #555;
             color: #e0e0e0;
         }
+
+        body.dark-mode .batch-shift-box {
+            background: #343434;
+            border-color: #5a5a5a;
+        }
+
+        body.dark-mode .batch-save-btn {
+            background: #42a5f5;
+            color: #101010;
+        }
         
         body.dark-mode .permission-hint {
             color: #777;
@@ -423,7 +468,18 @@
                             <option value="3">最近 3 天</option>
                             <option value="5" selected>最近 5 天</option>
                             <option value="7">最近 7 天</option>
+                            <option value="custom">自定义区间</option>
                         </select>
+                    </div>
+                </div>
+                <div class="batch-range-wrap" id="batchRangeWrap">
+                    <div class="form-group">
+                        <label>开始日期</label>
+                        <input type="date" id="batchStartDate">
+                    </div>
+                    <div class="form-group">
+                        <label>结束日期</label>
+                        <input type="date" id="batchEndDate">
                     </div>
                 </div>
                 <div class="permission-hint">同一页连续填写多天数据，保存时会按日期分别写入数据库。</div>
@@ -610,15 +666,18 @@
             return fetch(url, { ...options, headers });
         }
 
-        const batchSectionsConfig = [
+        const baseBatchSectionsConfig = [
             { key: 'production', title: '🏭 生产组织', subtitle: '连续填写多天当日限制最大刀数', fields: ['suggestedRings'] },
             { key: 'actual', title: '⚙️ 实际刀数', subtitle: '每个日期一行，直接填三班刀数与架数', fields: ['actualMiddle', 'actualNight', 'actualMorning'] },
             { key: 'position', title: '📍 工作面位置', subtitle: '多日期连续填写工作面位置', fields: ['jiaoyunLane', 'huifengLane'] },
             { key: 'deformation', title: '📐 变形监测', subtitle: '支持多天连续填写监测值', fields: ['deformationValue'] },
             { key: 'pressure', title: '🔄 周期来压', subtitle: '连续记录来压情况', fields: ['pressureCycle', 'daysSincePressure'] },
             { key: 'hanging', title: '🏗️ 悬顶 / 🌊 沉降', subtitle: '支持悬顶与沉降连续填写', fields: ['hangingRoof', 'surfaceSettlement'] },
-            { key: 'conclusion', title: '📋 综合结论', subtitle: '按日期填写结论和备注', fields: ['conclusion', 'remark'] }
+            { key: 'conclusion', title: '📋 综合结论', subtitle: '按日期填写综合结论', fields: ['conclusion'] },
+            { key: 'remark', title: '📝 备注', subtitle: '按日期填写补充说明', fields: ['remark'] }
         ];
+        const builtInBatchFieldSet = new Set(baseBatchSectionsConfig.flatMap(section => section.fields));
+        let currentFieldsConfig = {};
 
         const batchFieldMeta = {
             suggestedRings: { label: '当日限制最大刀数', type: 'number', step: '0.5' },
@@ -636,9 +695,41 @@
             remark: { label: '备注', type: 'textarea' }
         };
         let currentBatchDataMap = {};
+        let currentBatchDates = [];
+        let currentWorkfaceAllData = [];
 
         function getUserFields() {
-            return JSON.parse(localStorage.getItem('userFields') || '[]');
+            const fields = JSON.parse(localStorage.getItem('userFields') || '[]');
+            return (Array.isArray(fields) ? fields : []).map(item => String(item || '').trim()).filter(Boolean);
+        }
+
+        function getFieldMeta(field) {
+            if (batchFieldMeta[field]) return batchFieldMeta[field];
+            const configured = currentFieldsConfig[field];
+            const lowerField = String(field || '').toLowerCase();
+            const lowerName = String(configured?.name || '').toLowerCase();
+            const isEnergyField = lowerField.includes('nengliang') || lowerField.includes('energy') || lowerName.includes('能量');
+            return {
+                label: configured?.name || field,
+                type: isEnergyField ? 'scientific' : 'text'
+            };
+        }
+
+        function getBatchSectionsConfig(allowedFields) {
+            const customFields = allowedFields.filter(field =>
+                !builtInBatchFieldSet.has(field) &&
+                !field.startsWith('view_')
+            );
+            if (customFields.length === 0) return baseBatchSectionsConfig;
+            return [
+                ...baseBatchSectionsConfig,
+                {
+                    key: 'custom',
+                    title: '🧩 自定义栏目（能量事件）',
+                    subtitle: '按权限展示的自定义填报字段',
+                    fields: customFields
+                }
+            ];
         }
 
         function getRecentDates(count) {
@@ -648,6 +739,40 @@
                 const current = new Date(today);
                 current.setDate(today.getDate() - i);
                 dates.push(current.toISOString().slice(0, 10));
+            }
+            return dates;
+        }
+
+        function getRangeDates(startDate, endDate) {
+            if (!startDate || !endDate) return [];
+            const start = new Date(startDate + 'T00:00:00');
+            const end = new Date(endDate + 'T00:00:00');
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+            const dates = [];
+            const cursor = new Date(start);
+            while (cursor <= end && dates.length < 120) {
+                dates.push(cursor.toISOString().slice(0, 10));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            return dates;
+        }
+
+        function toggleBatchRangeInputs() {
+            const mode = document.getElementById('batchDays').value;
+            const wrap = document.getElementById('batchRangeWrap');
+            wrap.style.display = mode === 'custom' ? 'grid' : 'none';
+        }
+
+        function getSelectedBatchDates(showError = false) {
+            const mode = document.getElementById('batchDays').value;
+            if (mode !== 'custom') {
+                return getRecentDates(Number(mode || 5));
+            }
+            const startDate = document.getElementById('batchStartDate').value;
+            const endDate = document.getElementById('batchEndDate').value;
+            const dates = getRangeDates(startDate, endDate);
+            if (dates.length === 0 && showError) {
+                showToast('请选择有效的起止日期区间', 'error');
             }
             return dates;
         }
@@ -674,20 +799,71 @@
             return { knife, rack };
         }
 
+        function toScientificParts(value) {
+            if (value === null || value === undefined || value === '') {
+                return { mantissa: '', exponent: '' };
+            }
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return { mantissa: '', exponent: '' };
+            }
+            if (numeric === 0) {
+                return { mantissa: '0', exponent: '0' };
+            }
+            const exponent = Math.floor(Math.log10(Math.abs(numeric)));
+            const mantissa = numeric / Math.pow(10, exponent);
+            return {
+                mantissa: Number(mantissa.toFixed(4)).toString(),
+                exponent: String(exponent)
+            };
+        }
+
+        function fromScientificParts(mantissa, exponent) {
+            if (mantissa === '' && exponent === '') return '';
+            const m = Number(mantissa);
+            const e = Number(exponent);
+            if (!Number.isFinite(m) || !Number.isFinite(e)) return '';
+            const numeric = m * Math.pow(10, e);
+            return Number.isFinite(numeric) ? String(numeric) : '';
+        }
+
+        function isPressureDay(value) {
+            const text = String(value || '').trim();
+            if (!text) return false;
+            if (text === '否') return false;
+            if (text.includes('未')) return false;
+            return true;
+        }
+
+        function dayDiff(fromDate, toDate) {
+            const start = new Date(fromDate + 'T00:00:00');
+            const end = new Date(toDate + 'T00:00:00');
+            return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+        }
+
+        function findLatestPressureBefore(date) {
+            const rows = (currentWorkfaceAllData || [])
+                .filter(item => item.date < date && isPressureDay(item.pressureCycle))
+                .sort((a, b) => b.date.localeCompare(a.date));
+            return rows[0]?.date || null;
+        }
+
         function renderBatchInput(field, date, dataMap) {
-            const meta = batchFieldMeta[field];
+            const meta = getFieldMeta(field);
             const value = getBatchValue(dataMap, date, field);
 
             if (meta.type === 'actual') {
                 const parts = convertTotalToParts(value);
                 return `
-                    <div class="batch-actual">
-                        <input type="number" min="0" step="1" class="batch-actual-knife" data-date="${date}" data-field="${field}" value="${parts.knife}">
-                        <span>刀</span>
-                        <input type="number" min="0" step="1" max="189" class="batch-actual-rack" data-date="${date}" data-field="${field}" value="${parts.rack}">
-                        <span>架</span>
+                    <div class="batch-shift-box">
+                        <div class="batch-actual">
+                            <input type="number" min="0" step="1" class="batch-actual-knife" data-date="${date}" data-field="${field}" value="${parts.knife}">
+                            <span>刀</span>
+                            <input type="number" min="0" step="1" max="189" class="batch-actual-rack" data-date="${date}" data-field="${field}" value="${parts.rack}">
+                            <span>架</span>
+                        </div>
+                        <div class="batch-total" id="total-${field}-${date}">${value === '' ? '未填写' : value + ' 刀'}</div>
                     </div>
-                    <div class="batch-total" id="total-${field}-${date}">${value === '' ? '未填写' : value + ' 刀'}</div>
                 `;
             }
 
@@ -703,15 +879,30 @@
                 return `<textarea class="batch-textarea" data-date="${date}" data-field="${field}" placeholder="请输入${meta.label}">${value || ''}</textarea>`;
             }
 
+            if (meta.type === 'scientific') {
+                const parts = toScientificParts(value);
+                return `
+                    <div class="batch-actual" style="grid-template-columns: 1fr auto 1fr;">
+                        <input class="batch-input batch-sci-mantissa" type="number" step="0.01" data-date="${date}" data-field="${field}" value="${parts.mantissa}" placeholder="系数">
+                        <span>× 10^</span>
+                        <input class="batch-input batch-sci-exponent" type="number" step="1" data-date="${date}" data-field="${field}" value="${parts.exponent}" placeholder="指数">
+                    </div>
+                `;
+            }
+
+            if (field === 'daysSincePressure') {
+                return `<input class="batch-input" type="number" step="1" data-date="${date}" data-field="${field}" value="${value}" placeholder="自动计算" readonly style="background:#f5f5f5;cursor:not-allowed;">`;
+            }
+
             return `<input class="batch-input" type="${meta.type}" step="${meta.step || '1'}" data-date="${date}" data-field="${field}" value="${value}" placeholder="请输入${meta.label}">`;
         }
 
         function renderBatchSections(dates, dataMap, allowedFields) {
             const container = document.getElementById('batchSections');
-            const html = batchSectionsConfig.map(section => {
+            const sections = getBatchSectionsConfig(allowedFields);
+            const html = sections.map(section => {
                 const visibleFields = section.fields.filter(field => {
                     if (field === 'suggestedRings') return allowedFields.includes('suggestedRings');
-                    if (field === 'remark') return true;
                     if (field === 'daysSincePressure') return allowedFields.includes('pressureCycle');
                     return allowedFields.includes(field);
                 });
@@ -727,13 +918,16 @@
                                 <div class="batch-title">${section.title}</div>
                                 <div class="batch-subtitle">${section.subtitle}</div>
                             </div>
+                            <div class="batch-actions">
+                                <button type="button" class="batch-save-btn" data-section-save="${section.key}">保存本栏</button>
+                            </div>
                         </div>
                         <div class="batch-table-wrap">
                             <table class="batch-table">
                                 <thead>
                                     <tr>
                                         <th>日期</th>
-                                        ${visibleFields.map(field => `<th>${batchFieldMeta[field].label}</th>`).join('')}
+                                        ${visibleFields.map(field => `<th>${getFieldMeta(field).label}</th>`).join('')}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -752,6 +946,17 @@
 
             container.innerHTML = html || '<div class="batch-card"><div class="batch-empty">当前账号没有可填写的批量栏目，请联系管理员。</div></div>';
             bindBatchActualInputs();
+            bindBatchSectionButtons();
+            bindBatchPressureInputs();
+            recalcBatchPressureDays();
+        }
+
+        function bindBatchSectionButtons() {
+            document.querySelectorAll('[data-section-save]').forEach(button => {
+                button.addEventListener('click', () => {
+                    saveBatchData(button.dataset.sectionSave);
+                });
+            });
         }
 
         function bindBatchActualInputs() {
@@ -771,19 +976,56 @@
             });
         }
 
+        function bindBatchPressureInputs() {
+            document.querySelectorAll('[data-field="pressureCycle"]').forEach(input => {
+                input.addEventListener('change', recalcBatchPressureDays);
+            });
+        }
+
+        function recalcBatchPressureDays() {
+            if (!currentBatchDates.length) return;
+            let lastPressureDate = null;
+            currentBatchDates.forEach((date) => {
+                const pressureValue = document.querySelector(`[data-field="pressureCycle"][data-date="${date}"]`)?.value || '';
+                const daysInput = document.querySelector(`[data-field="daysSincePressure"][data-date="${date}"]`);
+                if (!daysInput) return;
+
+                if (isPressureDay(pressureValue)) {
+                    daysInput.value = '0';
+                    lastPressureDate = date;
+                    return;
+                }
+
+                const refDate = lastPressureDate || findLatestPressureBefore(date);
+                if (!refDate) {
+                    daysInput.value = '';
+                    return;
+                }
+
+                const days = dayDiff(refDate, date);
+                daysInput.value = Number.isFinite(days) && days >= 0 ? String(days) : '';
+            });
+        }
+
         async function loadBatchTables() {
             const workface = document.getElementById('batchWorkface').value;
-            const days = Number(document.getElementById('batchDays').value || 5);
             const allowedFields = getUserFields();
+            const dates = getSelectedBatchDates(false);
 
             if (!workface) {
                 document.getElementById('batchSections').innerHTML = '<div class="batch-card"><div class="batch-empty">请选择工作面后开始连续填报。</div></div>';
                 return;
             }
 
-            const dates = getRecentDates(days);
+            if (!dates || dates.length === 0) {
+                document.getElementById('batchSections').innerHTML = '<div class="batch-card"><div class="batch-empty">请选择有效日期范围后开始连续填报。</div></div>';
+                return;
+            }
+
             const res = await fetch('/api/daily');
             const allData = await res.json();
+            currentWorkfaceAllData = allData.filter(item => item.workface === workface);
+            currentBatchDates = dates.slice().sort();
             const dataMap = {};
             allData
                 .filter(item => item.workface === workface && dates.includes(item.date))
@@ -795,15 +1037,19 @@
             renderBatchSections(dates, dataMap, allowedFields);
         }
 
-        async function saveBatchData() {
+        async function saveBatchData(sectionKey = null) {
             const workface = document.getElementById('batchWorkface').value;
             if (!workface) {
                 showToast('请选择工作面', 'error');
                 return;
             }
 
-            const dates = getRecentDates(Number(document.getElementById('batchDays').value || 5));
+            const dates = getSelectedBatchDates(true);
+            if (!dates || dates.length === 0) return;
             const allowedFields = getUserFields();
+            const sections = getBatchSectionsConfig(allowedFields);
+            const selectedSection = sectionKey ? sections.find(section => section.key === sectionKey) : null;
+            const scopedFields = new Set(selectedSection ? selectedSection.fields : []);
             const requests = [];
 
             for (const date of dates) {
@@ -828,30 +1074,57 @@
                     conclusion: existing.conclusion ?? '',
                     remark: existing.remark ?? ''
                 };
+                const sectionValues = [];
 
-                if (allowedFields.includes('suggestedRings')) {
+                if ((!selectedSection || scopedFields.has('suggestedRings')) && allowedFields.includes('suggestedRings')) {
                     payload.suggestedRings = document.querySelector(`[data-field="suggestedRings"][data-date="${date}"]`)?.value || '';
+                    sectionValues.push(payload.suggestedRings);
                 }
 
                 ['actualMiddle', 'actualNight', 'actualMorning'].forEach(field => {
                     if (!allowedFields.includes(field)) return;
+                    if (selectedSection && !scopedFields.has(field)) return;
                     const knife = document.querySelector(`.batch-actual-knife[data-field="${field}"][data-date="${date}"]`)?.value || '';
                     const rack = document.querySelector(`.batch-actual-rack[data-field="${field}"][data-date="${date}"]`)?.value || '';
                     payload[field] = (!knife && !rack) ? '' : calculateTotalKnife(knife, rack);
+                    sectionValues.push(payload[field]);
                 });
 
                 ['jiaoyunLane', 'huifengLane', 'deformationValue', 'pressureCycle', 'hangingRoof', 'surfaceSettlement', 'conclusion'].forEach(field => {
                     if (!allowedFields.includes(field)) return;
+                    if (selectedSection && !scopedFields.has(field)) return;
                     payload[field] = document.querySelector(`[data-field="${field}"][data-date="${date}"]`)?.value || '';
+                    sectionValues.push(payload[field]);
                 });
 
-                if (allowedFields.includes('pressureCycle')) {
+                allowedFields.forEach(field => {
+                    if (builtInBatchFieldSet.has(field)) return;
+                    if (field.startsWith('view_')) return;
+                    if (selectedSection && !scopedFields.has(field)) return;
+                    const meta = getFieldMeta(field);
+                    if (meta.type === 'scientific') {
+                        const mantissa = document.querySelector(`.batch-sci-mantissa[data-field="${field}"][data-date="${date}"]`)?.value || '';
+                        const exponent = document.querySelector(`.batch-sci-exponent[data-field="${field}"][data-date="${date}"]`)?.value || '';
+                        payload[field] = fromScientificParts(mantissa, exponent);
+                    } else {
+                        payload[field] = document.querySelector(`[data-field="${field}"][data-date="${date}"]`)?.value || '';
+                    }
+                    sectionValues.push(payload[field]);
+                });
+
+                if ((!selectedSection || scopedFields.has('daysSincePressure')) && allowedFields.includes('pressureCycle')) {
                     payload.daysSincePressure = document.querySelector(`[data-field="daysSincePressure"][data-date="${date}"]`)?.value || '';
+                    sectionValues.push(payload.daysSincePressure);
                 }
 
-                payload.remark = document.querySelector(`[data-field="remark"][data-date="${date}"]`)?.value || '';
+                if ((!selectedSection || scopedFields.has('remark')) && allowedFields.includes('remark')) {
+                    payload.remark = document.querySelector(`[data-field="remark"][data-date="${date}"]`)?.value || '';
+                    sectionValues.push(payload.remark);
+                }
 
-                const hasContent = Object.entries(payload).some(([key, value]) => !['date', 'workface', 'token'].includes(key) && value !== '');
+                const hasContent = sectionKey
+                    ? sectionValues.some(value => value !== '')
+                    : Object.entries(payload).some(([key, value]) => !['date', 'workface', 'token'].includes(key) && value !== '');
                 if (hasContent) {
                     requests.push(authFetch('/api/daily', {
                         method: 'POST',
@@ -862,7 +1135,7 @@
             }
 
             if (requests.length === 0) {
-                showToast('当前没有可保存的填写内容', 'error');
+                showToast(sectionKey ? '当前栏目没有可保存的填写内容' : '当前没有可保存的填写内容', 'error');
                 return;
             }
 
@@ -874,7 +1147,7 @@
                 return;
             }
 
-            showToast(`已保存 ${requests.length} 条日期数据`, 'success');
+            showToast(sectionKey ? `本栏已保存 ${requests.length} 条日期数据` : `已保存 ${requests.length} 条日期数据`, 'success');
             loadBatchTables();
         }
 
@@ -1044,6 +1317,9 @@
             document.getElementById('fillForm').style.display = 'block';
             document.getElementById('userNameDisplay').textContent = '👤 ' + savedUser;
 
+            const fieldsRes = await fetch('/api/fields');
+            currentFieldsConfig = await fieldsRes.json();
+
             const wfRes = await fetch('/api/workfaces');
             const workfaces = await wfRes.json();
             const batchSelect = document.getElementById('batchWorkface');
@@ -1060,10 +1336,24 @@
                 batchSelect.value = userWorkfaces[0];
             }
 
-            document.getElementById('batchDays').addEventListener('change', loadBatchTables);
+            const batchDaysEl = document.getElementById('batchDays');
+            const batchStartEl = document.getElementById('batchStartDate');
+            const batchEndEl = document.getElementById('batchEndDate');
+            const today = new Date().toISOString().slice(0, 10);
+            const sevenDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            batchStartEl.value = sevenDaysAgo;
+            batchEndEl.value = today;
+
+            batchDaysEl.addEventListener('change', () => {
+                toggleBatchRangeInputs();
+                loadBatchTables();
+            });
+            batchStartEl.addEventListener('change', loadBatchTables);
+            batchEndEl.addEventListener('change', loadBatchTables);
             batchSelect.addEventListener('change', loadBatchTables);
             document.getElementById('saveBatchBtn').addEventListener('click', saveBatchData);
 
+            toggleBatchRangeInputs();
             loadBatchTables();
         }
         

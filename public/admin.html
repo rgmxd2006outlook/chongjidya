@@ -236,6 +236,21 @@
             cursor: pointer;
         }
         .checkbox-item input { width: auto; margin: 0; }
+        .view-layout-row { cursor: grab; }
+        .view-layout-row.dragging { opacity: 0.55; }
+        .drag-handle {
+            color: #9aa0a6;
+            font-size: 18px;
+            letter-spacing: 1px;
+            cursor: grab;
+            user-select: none;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .sort-arrow-btn {
+            min-width: 34px;
+            padding: 6px 8px;
+            margin-right: 6px;
+        }
         
         /* 标签页内容 */
         .tab-content { display: none; }
@@ -528,7 +543,7 @@
                         </div>
                         <div>
                             <label>角色</label>
-                            <select id="newRole">
+                            <select id="newRole" onchange="handleRoleChange()">
                                 <option value="user">📝 填写用户（可填写数据）</option>
                                 <option value="viewer">👁️ 查看用户（仅查看数据）</option>
                                 <option value="admin">👑 管理员</option>
@@ -537,7 +552,7 @@
                     </div>
                     <label style="display:block;margin-bottom:10px;font-weight:600;">可访问工作面（多选）- 请先选择工作面</label>
                     <div class="checkbox-group" id="workfaceCheckboxes"></div>
-                    <label style="display:block;margin-bottom:10px;font-weight:600;margin-top:20px;">可填写栏目（多选）- 根据工作面类型自动筛选</label>
+                    <label style="display:block;margin-bottom:10px;font-weight:600;margin-top:20px;" id="permissionsLabel">可填写栏目（多选）- 根据工作面类型自动筛选</label>
                     <div class="checkbox-group" id="fieldCheckboxes"></div>
                     <button class="btn btn-primary" onclick="addUser()">添加用户</button>
                 </div>
@@ -553,7 +568,7 @@
                                 <th>用户名</th>
                                 <th>角色</th>
                                 <th>可访问工作面</th>
-                                <th>可填写栏目</th>
+                                <th>权限配置</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -609,10 +624,6 @@
                                 <option value="共用">共用</option>
                             </select>
                         </div>
-                        <div>
-                            <label>部门</label>
-                            <input type="text" id="newFieldDept" placeholder="如: 综采队">
-                        </div>
                     </div>
                     <button class="btn btn-primary" onclick="addField()">添加栏目</button>
                 </div>
@@ -626,12 +637,44 @@
                                 <th>字段ID</th>
                                 <th>显示名称</th>
                                 <th>分组</th>
-                                <th>部门</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="fieldList"></tbody>
                     </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🧩 首页展示配置</div>
+                    <p style="color:#666;font-size:13px;margin-bottom:16px;">这里控制首页内容块显示哪些内容、显示顺序，以及分别适用于采煤还是掘进工作面。</p>
+                    <div class="form-row" style="margin-bottom:14px;">
+                        <div>
+                            <label>自定义内容块名称</label>
+                            <input type="text" id="newViewBlockName" placeholder="如: 现场补充信息">
+                        </div>
+                        <div>
+                            <label>自定义键（可选）</label>
+                            <input type="text" id="newViewBlockKey" placeholder="如: custom_note">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addCustomViewBlock()" style="margin-bottom:14px;">添加自定义内容块</button>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>拖拽</th>
+                                <th>内容块</th>
+                                <th>是否显示</th>
+                                <th>排序</th>
+                                <th>适用工作面</th>
+                                <th>包含栏目</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="viewLayoutList"></tbody>
+                    </table>
+                    <div style="margin-top:16px;">
+                        <button class="btn btn-primary" onclick="saveViewLayout()">保存首页展示配置</button>
+                    </div>
                 </div>
             </div>
             
@@ -655,6 +698,10 @@
                                 <option value="掘进">掘进工作面</option>
                             </select>
                         </div>
+                        <div>
+                            <label>序号（可选）</label>
+                            <input type="number" id="newWorkfaceSort" placeholder="如: 4">
+                        </div>
                     </div>
                     <button class="btn btn-primary" onclick="addWorkface()">添加工作面</button>
                 </div>
@@ -664,6 +711,7 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>序号</th>
                                 <th>工作面ID</th>
                                 <th>名称</th>
                                 <th>类型</th>
@@ -692,7 +740,7 @@
             </div>
             <div style="margin-bottom:15px;">
                 <label style="display:block;margin-bottom:8px;font-weight:500;">角色</label>
-                <select id="editRole" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;">
+                <select id="editRole" onchange="handleEditRoleChange()" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;">
                     <option value="user">📝 填写用户（可填写数据）</option>
                     <option value="viewer">👁️ 查看用户（仅查看数据）</option>
                     <option value="admin">👑 管理员</option>
@@ -703,7 +751,7 @@
                 <div class="checkbox-group" id="editWorkfaceCheckboxes" style="max-height:150px;overflow-y:auto;"></div>
             </div>
             <div style="margin-bottom:15px;">
-                <label style="display:block;margin-bottom:8px;font-weight:500;">可填写栏目（多选）- 根据工作面类型自动筛选</label>
+                <label style="display:block;margin-bottom:8px;font-weight:500;" id="editPermissionsLabel">可填写栏目（多选）- 根据工作面类型自动筛选</label>
                 <div class="checkbox-group" id="editFieldCheckboxes" style="max-height:150px;overflow-y:auto;"></div>
             </div>
             <div class="modal-btns">
@@ -730,6 +778,51 @@
         let allUsers = [];
         let allRecords = [];
         let fieldConfig = {};
+        let currentViewLayout = [];
+        let currentFieldOptions = {};
+        const DEFAULT_VIEW_BLOCK_KEYS = [
+            'production', 'position', 'deformation', 'pressure',
+            'hanging', 'settlement', 'remark', 'conclusion'
+        ];
+        const VIEW_PERMISSION_OPTIONS = [
+            { id: 'view_production', name: '生产组织与趋势' },
+            { id: 'view_position', name: '工作面位置' },
+            { id: 'view_deformation', name: '变形监测' },
+            { id: 'view_pressure', name: '周期来压' },
+            { id: 'view_hanging', name: '悬顶情况' },
+            { id: 'view_settlement', name: '地表沉降' },
+            { id: 'view_remark', name: '备注' },
+            { id: 'view_conclusion', name: '综合结论' },
+            { id: 'view_history', name: '历史记录页面' }
+        ];
+        const FIELD_LABELS = {
+            suggestedRings: '建议刀数',
+            actualNight: '夜班刀数',
+            actualMorning: '早班刀数',
+            actualMiddle: '中班刀数',
+            jiaoyunLane: '胶运巷位置',
+            huifengLane: '回风巷位置',
+            deformationValue: '变形监测',
+            pressureCycle: '周期来压',
+            hangingRoof: '悬顶情况',
+            surfaceSettlement: '沉降情况',
+            conclusion: '综合结论',
+            view_production: '生产组织与趋势',
+            view_position: '工作面位置',
+            view_deformation: '变形监测',
+            view_pressure: '周期来压',
+            view_hanging: '悬顶情况',
+            view_settlement: '地表沉降',
+            view_remark: '备注',
+            view_conclusion: '综合结论',
+            view_history: '历史记录页面'
+        };
+        const CONTENT_BLOCK_EXTRA_FIELDS = {
+            deformationNormalMin: { name: '变形正常范围最小值', group: '掘进' },
+            deformationNormalMax: { name: '变形正常范围最大值', group: '掘进' },
+            daysSincePressure: { name: '距上次来压天数', group: '掘进' },
+            remark: { name: '备注', group: '共用' }
+        };
 
         function getAdminHeaders() {
             const token = localStorage.getItem('adminToken');
@@ -739,6 +832,247 @@
         async function adminFetch(url, options = {}) {
             const headers = { ...(options.headers || {}), ...getAdminHeaders() };
             return fetch(url, { ...options, headers });
+        }
+
+        function getPermissionLabelText(role) {
+            return role === 'viewer'
+                ? '可查看内容块（多选）'
+                : '可填写栏目（多选）- 根据工作面类型自动筛选';
+        }
+
+        function normalizeFieldArray(fields) {
+            if (!fields) return [];
+            if (Array.isArray(fields)) return fields.map(f => String(f || '').trim()).filter(Boolean);
+            if (typeof fields === 'string') return fields.split(',').map(f => String(f || '').trim()).filter(Boolean);
+            return [];
+        }
+
+        function getFieldDisplayName(fieldId) {
+            if (FIELD_LABELS[fieldId]) return FIELD_LABELS[fieldId];
+            if (fieldConfig[fieldId]?.name) return fieldConfig[fieldId].name;
+            if (currentFieldOptions[fieldId]?.name) return currentFieldOptions[fieldId].name;
+            if (CONTENT_BLOCK_EXTRA_FIELDS[fieldId]?.name) return CONTENT_BLOCK_EXTRA_FIELDS[fieldId].name;
+            return fieldId;
+        }
+
+        function updatePermissionLabels() {
+            const createRole = document.getElementById('newRole')?.value || 'user';
+            const editRole = document.getElementById('editRole')?.value || 'user';
+            const createLabel = document.getElementById('permissionsLabel');
+            const editLabel = document.getElementById('editPermissionsLabel');
+            if (createLabel) createLabel.textContent = getPermissionLabelText(createRole);
+            if (editLabel) editLabel.textContent = getPermissionLabelText(editRole);
+        }
+
+        function normalizeCustomBlockKey(raw) {
+            const normalized = String(raw || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9_]+/g, '_')
+                .replace(/^_+|_+$/g, '');
+            return normalized ? `custom_${normalized}` : '';
+        }
+
+        function isDefaultViewBlockKey(key) {
+            return DEFAULT_VIEW_BLOCK_KEYS.includes(key);
+        }
+
+        function getMergedFieldOptions() {
+            return {
+                ...currentFieldOptions,
+                ...CONTENT_BLOCK_EXTRA_FIELDS
+            };
+        }
+
+        function renderViewGroupCheckboxes(item) {
+            const groups = Array.isArray(item.groups) ? item.groups : [];
+            return ['采煤', '掘进', '共用'].map(group => `
+                <label class="checkbox-item" style="display:inline-flex;margin-right:10px;margin-bottom:6px;">
+                    <input type="checkbox" class="view-layout-group" data-key="${item.key}" value="${group}" ${groups.includes(group) ? 'checked' : ''}>
+                    ${group}
+                </label>
+            `).join('');
+        }
+
+        function renderViewFieldCheckboxes(item) {
+            const selectedFields = Array.isArray(item.fields) ? item.fields : [];
+            const fieldOptions = getMergedFieldOptions();
+            return Object.entries(fieldOptions).map(([fieldId, fieldMeta]) => `
+                <label class="checkbox-item" style="display:inline-flex;margin-right:10px;margin-bottom:6px;">
+                    <input type="checkbox" class="view-layout-field" data-key="${item.key}" value="${fieldId}" ${selectedFields.includes(fieldId) ? 'checked' : ''}>
+                    ${fieldMeta.name || fieldId}
+                </label>
+            `).join('');
+        }
+
+        function addCustomViewBlock() {
+            const name = document.getElementById('newViewBlockName').value.trim();
+            const keyInput = document.getElementById('newViewBlockKey').value.trim();
+            const key = normalizeCustomBlockKey(keyInput || name);
+            if (!name) {
+                showToast('请先填写自定义内容块名称', 'error');
+                return;
+            }
+            if (!key) {
+                showToast('请输入合法的自定义键', 'error');
+                return;
+            }
+            if (currentViewLayout.some(item => item.key === key)) {
+                showToast('该自定义键已存在，请换一个', 'error');
+                return;
+            }
+
+            const maxSort = currentViewLayout.reduce((max, item) => Math.max(max, Number(item.sort) || 0), 0);
+            currentViewLayout.push({
+                key,
+                name,
+                visible: true,
+                sort: maxSort + 1,
+                groups: ['共用'],
+                fields: []
+            });
+
+            document.getElementById('newViewBlockName').value = '';
+            document.getElementById('newViewBlockKey').value = '';
+            renderViewLayoutTable();
+            showToast('自定义内容块已添加，请勾选栏目后保存', 'success');
+        }
+
+        function removeCustomViewBlock(key) {
+            currentViewLayout = currentViewLayout.filter(item => item.key !== key);
+            renderViewLayoutTable();
+        }
+
+        function refreshViewLayoutSortFromDom() {
+            const rows = Array.from(document.querySelectorAll('#viewLayoutList tr[data-key]'));
+            rows.forEach((row, index) => {
+                const key = row.dataset.key;
+                const input = row.querySelector('.view-layout-sort');
+                if (input) input.value = String(index + 1);
+                const target = currentViewLayout.find(item => item.key === key);
+                if (target) target.sort = index + 1;
+            });
+        }
+
+        function bindViewLayoutDragSort() {
+            const tbody = document.getElementById('viewLayoutList');
+            if (!tbody) return;
+            let draggingRow = null;
+
+            tbody.querySelectorAll('tr[data-key]').forEach((row) => {
+                row.addEventListener('dragstart', () => {
+                    draggingRow = row;
+                    row.classList.add('dragging');
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('dragging');
+                    draggingRow = null;
+                    refreshViewLayoutSortFromDom();
+                });
+                row.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                });
+                row.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    if (!draggingRow || draggingRow === row) return;
+                    const rows = Array.from(tbody.querySelectorAll('tr[data-key]'));
+                    const fromIndex = rows.indexOf(draggingRow);
+                    const toIndex = rows.indexOf(row);
+                    if (fromIndex < toIndex) {
+                        row.after(draggingRow);
+                    } else {
+                        row.before(draggingRow);
+                    }
+                });
+            });
+        }
+
+        function moveViewLayoutRow(key, direction) {
+            const tbody = document.getElementById('viewLayoutList');
+            if (!tbody) return;
+            const row = tbody.querySelector(`tr[data-key="${key}"]`);
+            if (!row) return;
+            if (direction < 0) {
+                const prevRow = row.previousElementSibling;
+                if (!prevRow || !prevRow.dataset.key) return;
+                prevRow.before(row);
+            } else {
+                const nextRow = row.nextElementSibling;
+                if (!nextRow || !nextRow.dataset.key) return;
+                nextRow.after(row);
+            }
+            refreshViewLayoutSortFromDom();
+        }
+
+        function renderViewLayoutTable() {
+            document.getElementById('viewLayoutList').innerHTML = currentViewLayout.map(item => `
+                <tr class="view-layout-row" data-key="${item.key}" draggable="true">
+                    <td><span class="drag-handle" title="拖动排序">⋮⋮</span></td>
+                    <td>
+                        <input type="text" class="view-layout-name" data-key="${item.key}" value="${item.name || ''}" style="width:140px;padding:8px;border:2px solid #e0e0e0;border-radius:8px;">
+                        <div style="color:#888;font-size:12px;margin-top:4px;">${item.key}</div>
+                    </td>
+                    <td>
+                        <label class="checkbox-item" style="display:inline-flex;">
+                            <input type="checkbox" class="view-layout-visible" data-key="${item.key}" ${item.visible ? 'checked' : ''}>
+                            显示
+                        </label>
+                    </td>
+                    <td>
+                        <input type="number" min="1" class="view-layout-sort" data-key="${item.key}" value="${item.sort}" style="width:80px;padding:8px;border:2px solid #e0e0e0;border-radius:8px;">
+                    </td>
+                    <td style="min-width:180px;">${renderViewGroupCheckboxes(item)}</td>
+                    <td style="min-width:320px;"><div style="max-width:360px;">${renderViewFieldCheckboxes(item)}</div></td>
+                    <td>
+                        <button class="btn sort-arrow-btn" onclick="moveViewLayoutRow('${item.key}', -1)" title="上移">↑</button>
+                        <button class="btn sort-arrow-btn" onclick="moveViewLayoutRow('${item.key}', 1)" title="下移">↓</button>
+                        ${isDefaultViewBlockKey(item.key) ? '<span style="color:#888;">系统</span>' : `<button class="btn btn-danger" onclick="removeCustomViewBlock('${item.key}')" style="padding:6px 10px;">删除</button>`}
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="7" class="empty-state">暂无首页展示配置</td></tr>';
+            bindViewLayoutDragSort();
+        }
+
+        async function loadViewLayout() {
+            const [res, fieldRes] = await Promise.all([
+                fetch('/api/view-layout'),
+                fetch('/api/fields')
+            ]);
+            const config = await res.json();
+            currentFieldOptions = await fieldRes.json();
+            currentViewLayout = Array.isArray(config) ? config : [];
+            renderViewLayoutTable();
+            if (allUsers.length) renderUserList(allUsers);
+        }
+
+        async function saveViewLayout() {
+            refreshViewLayoutSortFromDom();
+            const rowKeys = Array.from(document.querySelectorAll('#viewLayoutList tr[data-key]')).map(row => row.dataset.key);
+            const config = rowKeys.map((key, index) => {
+                const item = currentViewLayout.find(entry => entry.key === key) || { key };
+                return {
+                    key,
+                    name: (document.querySelector(`.view-layout-name[data-key="${key}"]`)?.value || item.name || '').trim() || key,
+                    visible: Boolean(document.querySelector(`.view-layout-visible[data-key="${key}"]`)?.checked),
+                    sort: index + 1,
+                    groups: Array.from(document.querySelectorAll(`.view-layout-group[data-key="${key}"]:checked`)).map(input => input.value),
+                    fields: Array.from(document.querySelectorAll(`.view-layout-field[data-key="${key}"]:checked`)).map(input => input.value)
+                };
+            });
+
+            const res = await adminFetch('/api/view-layout', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ config })
+            });
+
+            if (res.ok) {
+                showToast('首页展示配置已保存', 'success');
+                loadViewLayout();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                showToast(data.error || '保存失败', 'error');
+            }
         }
         
         // 初始化
@@ -769,13 +1103,15 @@
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('adminLayout').classList.add('active');
             document.getElementById('currentUser').textContent = currentUser.username;
+            updatePermissionLabels();
             loadDashboard();
             loadUsers();
             loadRecords();
             loadFields();
+            loadViewLayout();
             loadWorkfaces();
-            renderFieldCheckboxes();
             renderWorkfaceCheckboxes();
+            handleRoleChange();
         }
         
         // 登录
@@ -833,6 +1169,7 @@
                     loadRecords();
                 } else if (tab === 'settings') {
                     loadFields();
+                    loadViewLayout();
                 } else if (tab === 'workfaces') {
                     loadWorkfaces();
                 }
@@ -884,41 +1221,9 @@
         
         function renderUserList(users) {
             const getFieldsDisplay = (fields) => {
-                if (!fields) return '-';
-                if (typeof fields === 'string') {
-                    // 转换字段名为中文
-                    const fieldMap = {
-                        'suggestedRings': '建议刀数',
-                        'actualNight': '夜班刀数',
-                        'actualMorning': '早班刀数',
-                        'actualMiddle': '中班刀数',
-                        'jiaoyunLane': '胶运巷位置',
-                        'huifengLane': '回风巷位置',
-                        'deformationValue': '变形监测',
-                        'pressureCycle': '周期来压',
-                        'hangingRoof': '悬顶情况',
-                        'surfaceSettlement': '沉降情况',
-                        'conclusion': '综合结论'
-                    };
-                    return fields.split(',').map(f => fieldMap[f] || f).join(', ');
-                }
-                if (Array.isArray(fields)) {
-                    const fieldMap = {
-                        'suggestedRings': '建议刀数',
-                        'actualNight': '夜班刀数',
-                        'actualMorning': '早班刀数',
-                        'actualMiddle': '中班刀数',
-                        'jiaoyunLane': '胶运巷位置',
-                        'huifengLane': '回风巷位置',
-                        'deformationValue': '变形监测',
-                        'pressureCycle': '周期来压',
-                        'hangingRoof': '悬顶情况',
-                        'surfaceSettlement': '沉降情况',
-                        'conclusion': '综合结论'
-                    };
-                    return fields.map(f => fieldMap[f] || f).join(', ');
-                }
-                return '-';
+                const normalizedFields = normalizeFieldArray(fields);
+                if (normalizedFields.length === 0) return '-';
+                return normalizedFields.map(getFieldDisplayName).join(', ');
             };
             
             const getWorkfacesDisplay = (workface) => {
@@ -955,7 +1260,18 @@
         // 存储所有工作面信息
         let allWorkfaces = [];
         
-        async function renderFieldCheckboxes(selectedWorkfaceIds = []) {
+        async function renderFieldCheckboxes(selectedWorkfaceIds = [], role = document.getElementById('newRole')?.value || 'user') {
+            updatePermissionLabels();
+            if (role === 'viewer') {
+                document.getElementById('fieldCheckboxes').innerHTML = VIEW_PERMISSION_OPTIONS.map(item => `
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="${item.id}" class="field-checkbox">
+                        ${item.name}
+                    </label>
+                `).join('');
+                return;
+            }
+
             const res = await fetch('/api/fields');
             fieldConfig = await res.json();
             
@@ -1009,7 +1325,13 @@
         // 处理工作面选择变化
         async function handleWorkfaceChange() {
             const selectedWorkfaces = Array.from(document.querySelectorAll('.workface-checkbox:checked')).map(cb => cb.value);
-            await renderFieldCheckboxes(selectedWorkfaces);
+            await renderFieldCheckboxes(selectedWorkfaces, document.getElementById('newRole')?.value || 'user');
+        }
+
+        async function handleRoleChange() {
+            const role = document.getElementById('newRole')?.value || 'user';
+            const selectedWorkfaces = Array.from(document.querySelectorAll('.workface-checkbox:checked')).map(cb => cb.value);
+            await renderFieldCheckboxes(selectedWorkfaces, role);
         }
         
         async function addUser() {
@@ -1035,6 +1357,8 @@
                 showToast('用户添加成功', 'success');
                 document.getElementById('newUsername').value = '';
                 document.getElementById('newPassword').value = '';
+                updatePermissionLabels();
+                handleRoleChange();
                 loadUsers();
             } else {
                 showToast('添加失败，用户名可能已存在', 'error');
@@ -1083,13 +1407,26 @@
             document.getElementById('editWorkfaceCheckboxes').innerHTML = workfaceHtml;
             
             // 加载栏目选项（根据工作面类型过滤）
-            await renderEditFieldCheckboxes(userWorkfaces, user.fields);
+            await renderEditFieldCheckboxes(userWorkfaces, user.fields, user.role || 'user');
             
             document.getElementById('editUserModal').classList.add('active');
         }
         
         // 渲染编辑用户时的栏目选项
-        async function renderEditFieldCheckboxes(selectedWorkfaceIds = [], userFields = []) {
+        async function renderEditFieldCheckboxes(selectedWorkfaceIds = [], userFields = [], role = document.getElementById('editRole')?.value || 'user') {
+            updatePermissionLabels();
+            let existingFields = normalizeFieldArray(userFields);
+            if (role === 'viewer') {
+                document.getElementById('editFieldCheckboxes').innerHTML = VIEW_PERMISSION_OPTIONS.map(item => {
+                    const checked = existingFields.includes(item.id) ? 'checked' : '';
+                    return `<label class="checkbox-item">
+                        <input type="checkbox" value="${item.id}" class="edit-field-checkbox" ${checked}>
+                        ${item.name}
+                    </label>`;
+                }).join('');
+                return;
+            }
+
             const res = await fetch('/api/fields');
             const fields = await res.json();
             
@@ -1107,11 +1444,6 @@
             allowedGroups.add('共用');
             
             // 处理用户已有字段
-            let existingFields = userFields || [];
-            if (typeof existingFields === 'string') {
-                existingFields = existingFields.split(',').filter(f => f);
-            }
-            
             let html = '';
             for (const [key, val] of Object.entries(fields)) {
                 // 如果选择了工作面，只显示对应分组的栏目（包括共用）
@@ -1130,7 +1462,12 @@
         // 处理编辑用户时工作面选择变化
         async function handleEditWorkfaceChange() {
             const selectedWorkfaces = Array.from(document.querySelectorAll('.edit-workface-checkbox:checked')).map(cb => cb.value);
-            await renderEditFieldCheckboxes(selectedWorkfaces);
+            await renderEditFieldCheckboxes(selectedWorkfaces, Array.from(document.querySelectorAll('.edit-field-checkbox:checked')).map(cb => cb.value), document.getElementById('editRole')?.value || 'user');
+        }
+
+        async function handleEditRoleChange() {
+            const selectedWorkfaces = Array.from(document.querySelectorAll('.edit-workface-checkbox:checked')).map(cb => cb.value);
+            await renderEditFieldCheckboxes(selectedWorkfaces, Array.from(document.querySelectorAll('.edit-field-checkbox:checked')).map(cb => cb.value), document.getElementById('editRole')?.value || 'user');
         }
         
         function closeEditModal() {
@@ -1229,6 +1566,7 @@
         async function loadFields() {
             const res = await fetch('/api/fields');
             const fields = await res.json();
+            fieldConfig = fields;
             
             let index = 1;
             document.getElementById('fieldList').innerHTML = Object.entries(fields).map(([key, val]) => `
@@ -1243,20 +1581,19 @@
                             <option value="共用" ${val.group === '共用' ? 'selected' : ''}>共用</option>
                         </select>
                     </td>
-                    <td><input type="text" id="dept-${key}" value="${val.dept || ''}" style="width:100px;padding:6px;"></td>
                     <td>
                         <button class="btn btn-primary" onclick="updateField('${key}')" style="padding:6px 12px;">保存</button>
                         <button class="btn btn-danger" onclick="deleteField('${key}')" style="padding:6px 12px;">删除</button>
                     </td>
                 </tr>
-            `).join('') || '<tr><td colspan="6" class="empty-state">暂无栏目</td></tr>';
+            `).join('') || '<tr><td colspan="5" class="empty-state">暂无栏目</td></tr>';
+            if (allUsers.length) renderUserList(allUsers);
         }
         
         async function addField() {
             const fieldId = document.getElementById('newFieldId').value.trim();
             const name = document.getElementById('newFieldName').value.trim();
             const group = document.getElementById('newFieldGroup').value;
-            const dept = document.getElementById('newFieldDept').value.trim();
             
             if (!fieldId || !name) {
                 showToast('字段ID和名称不能为空', 'error');
@@ -1266,7 +1603,7 @@
             const res = await adminFetch('/api/fields', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({fieldId, name, group, dept})
+                body: JSON.stringify({fieldId, name, group})
             });
             
             if (res.ok) {
@@ -1274,7 +1611,6 @@
                 document.getElementById('newFieldId').value = '';
                 document.getElementById('newFieldName').value = '';
                 document.getElementById('newFieldGroup').value = '';
-                document.getElementById('newFieldDept').value = '';
                 loadFields();
             } else {
                 const data = await res.json();
@@ -1285,13 +1621,12 @@
         async function updateField(fieldId) {
             const name = document.getElementById('name-' + fieldId).value.trim();
             const group = document.getElementById('group-' + fieldId).value.trim();
-            const dept = document.getElementById('dept-' + fieldId).value.trim();
             const sort = parseInt(document.getElementById('sort-' + fieldId).value) || 0;
             
             const res = await adminFetch('/api/fields/' + fieldId, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, group, dept, sort})
+                body: JSON.stringify({name, group, sort})
             });
             
             if (res.ok) {
@@ -1321,6 +1656,7 @@
             
             document.getElementById('workfaceList').innerHTML = workfaces.map(w => `
                 <tr>
+                    <td><input type="number" id="wf-sort-${w.id}" value="${w.sort_order ?? ''}" style="width:70px;padding:6px;text-align:center;"></td>
                     <td>${w.id}</td>
                     <td><input type="text" id="wf-name-${w.id}" value="${w.name}" style="width:150px;padding:6px;"></td>
                     <td>
@@ -1334,13 +1670,14 @@
                         <button class="btn btn-danger" onclick="deleteWorkface('${w.id}')" style="padding:6px 12px;">删除</button>
                     </td>
                 </tr>
-            `).join('') || '<tr><td colspan="4" class="empty-state">暂无工作面</td></tr>';
+            `).join('') || '<tr><td colspan="5" class="empty-state">暂无工作面</td></tr>';
         }
         
         async function addWorkface() {
             const id = document.getElementById('newWorkfaceId').value.trim();
             const name = document.getElementById('newWorkfaceName').value.trim();
             const type = document.getElementById('newWorkfaceType').value;
+            const sort = parseInt(document.getElementById('newWorkfaceSort').value, 10);
             
             if (!id || !name) {
                 showToast('工作面ID和名称不能为空', 'error');
@@ -1350,13 +1687,14 @@
             const res = await adminFetch('/api/workfaces', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id, name, type})
+                body: JSON.stringify({id, name, type, sort: Number.isFinite(sort) ? sort : undefined})
             });
             
             if (res.ok) {
                 showToast('工作面添加成功', 'success');
                 document.getElementById('newWorkfaceId').value = '';
                 document.getElementById('newWorkfaceName').value = '';
+                document.getElementById('newWorkfaceSort').value = '';
                 loadWorkfaces();
             } else {
                 const data = await res.json();
@@ -1367,11 +1705,12 @@
         async function updateWorkface(id) {
             const name = document.getElementById('wf-name-' + id).value.trim();
             const type = document.getElementById('wf-type-' + id).value;
+            const sort = parseInt(document.getElementById('wf-sort-' + id).value, 10) || 0;
             
             const res = await adminFetch('/api/workfaces/' + id, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, type})
+                body: JSON.stringify({name, type, sort})
             });
             
             if (res.ok) {

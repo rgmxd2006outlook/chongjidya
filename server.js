@@ -23,6 +23,72 @@ const MYSQL_CONFIG = {
 let pool;
 let db;
 const SQLITE_PATH = path.join(__dirname, 'database.db');
+const DEFAULT_VIEW_LAYOUT = [
+    {
+        key: 'production',
+        name: '生产组织与趋势',
+        visible: true,
+        sort: 1,
+        groups: ['采煤'],
+        fields: ['suggestedRings', 'actualMiddle', 'actualNight', 'actualMorning']
+    },
+    {
+        key: 'position',
+        name: '工作面位置',
+        visible: true,
+        sort: 2,
+        groups: ['掘进'],
+        fields: ['jiaoyunLane', 'huifengLane']
+    },
+    {
+        key: 'deformation',
+        name: '变形监测',
+        visible: true,
+        sort: 3,
+        groups: ['掘进'],
+        fields: ['deformationNormalMin', 'deformationNormalMax', 'deformationValue']
+    },
+    {
+        key: 'pressure',
+        name: '周期来压',
+        visible: true,
+        sort: 4,
+        groups: ['掘进'],
+        fields: ['pressureCycle', 'daysSincePressure']
+    },
+    {
+        key: 'hanging',
+        name: '悬顶情况',
+        visible: true,
+        sort: 5,
+        groups: ['掘进'],
+        fields: ['hangingRoof']
+    },
+    {
+        key: 'settlement',
+        name: '地表沉降',
+        visible: true,
+        sort: 6,
+        groups: ['掘进'],
+        fields: ['surfaceSettlement']
+    },
+    {
+        key: 'remark',
+        name: '备注',
+        visible: true,
+        sort: 7,
+        groups: ['共用'],
+        fields: ['remark']
+    },
+    {
+        key: 'conclusion',
+        name: '综合结论',
+        visible: true,
+        sort: 8,
+        groups: ['掘进'],
+        fields: ['conclusion']
+    }
+];
 
 function isMysqlMode() {
     return Boolean(pool);
@@ -46,7 +112,8 @@ async function createTables() {
         CREATE TABLE IF NOT EXISTS workfaces (
             id VARCHAR(64) PRIMARY KEY,
             name VARCHAR(255),
-            type VARCHAR(64) DEFAULT '采煤'
+            type VARCHAR(64) DEFAULT '采煤',
+            sort_order INT DEFAULT 0
         )
     `);
 
@@ -110,6 +177,7 @@ async function createTables() {
             conclusion TEXT,
             conclusionBy TEXT,
             remark TEXT,
+            extraData LONGTEXT,
             filledBy TEXT,
             createdAt DATETIME,
             status VARCHAR(32) DEFAULT 'draft',
@@ -130,6 +198,13 @@ async function createTables() {
             timestamp DATETIME
         )
     `);
+
+    await runStatement(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key VARCHAR(128) PRIMARY KEY,
+            setting_value LONGTEXT
+        )
+    `);
 }
 
 function createSqliteTables(callback) {
@@ -137,7 +212,8 @@ function createSqliteTables(callback) {
         CREATE TABLE IF NOT EXISTS workfaces (
             id TEXT PRIMARY KEY,
             name TEXT,
-            type TEXT DEFAULT '采煤'
+            type TEXT DEFAULT '采煤',
+            sort_order INTEGER DEFAULT 0
         )
     `, () => {
         db.run(`
@@ -197,6 +273,7 @@ function createSqliteTables(callback) {
                             conclusion TEXT,
                             conclusionBy TEXT,
                             remark TEXT,
+                            extraData TEXT,
                             filledBy TEXT,
                             createdAt TEXT,
                             status TEXT DEFAULT 'draft',
@@ -216,8 +293,19 @@ function createSqliteTables(callback) {
                                 timestamp TEXT
                             )
                         `, () => {
-                            db.run(`ALTER TABLE fields ADD COLUMN dept TEXT DEFAULT ''`, () => {
-                                callback();
+                            db.run(`
+                                CREATE TABLE IF NOT EXISTS app_settings (
+                                    setting_key TEXT PRIMARY KEY,
+                                    setting_value TEXT
+                                )
+                            `, () => {
+                                db.run(`ALTER TABLE fields ADD COLUMN dept TEXT DEFAULT ''`, () => {
+                                    db.run(`ALTER TABLE daily ADD COLUMN extraData TEXT`, () => {
+                                        db.run(`ALTER TABLE workfaces ADD COLUMN sort_order INTEGER DEFAULT 0`, () => {
+                                            callback();
+                                        });
+                                    });
+                                });
                             });
                         });
                     });
@@ -230,8 +318,10 @@ function createSqliteTables(callback) {
 // 插入默认数据
 function insertDefaultData() {
     // 默认工作面
-    db.run(`${isMysqlMode() ? 'INSERT IGNORE' : 'INSERT OR IGNORE'} INTO workfaces (id, name, type) VALUES (?, ?, ?), (?, ?, ?)`, 
-        ['30210', '30210工作面', '采煤', '30102', '30102工作面', '采煤']);
+    db.run(
+        `${isMysqlMode() ? 'INSERT IGNORE' : 'INSERT OR IGNORE'} INTO workfaces (id, name, type, sort_order) VALUES (?, ?, ?, ?), (?, ?, ?, ?)`,
+        ['30210', '30210工作面', '采煤', 1, '30102', '30102工作面', '采煤', 2]
+    );
     
     // 默认栏目配置（带排序编号）
     const defaultFields = [
@@ -259,6 +349,11 @@ function insertDefaultData() {
     // 默认管理员用户
     db.run(`${isMysqlMode() ? 'INSERT IGNORE' : 'INSERT OR IGNORE'} INTO users (id, username, password, role, workface, fields, name) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
         [uuidv4(), 'admin', '102184', 'admin', '30210,30102', 'suggestedRings,actualNight,actualMorning,actualMiddle,jiaoyunLane,huifengLane,deformationValue,pressureCycle,hangingRoof,surfaceSettlement,conclusion', '管理员']);
+
+    db.run(
+        `${isMysqlMode() ? 'INSERT IGNORE' : 'INSERT OR IGNORE'} INTO app_settings (setting_key, setting_value) VALUES (?, ?)`,
+        ['viewLayout', JSON.stringify(DEFAULT_VIEW_LAYOUT)]
+    );
 }
 
 // 工作面配置
@@ -269,7 +364,7 @@ const DEFAULT_WORKFACES = [
 
 // 加载工作面列表
 function loadWorkfaces(callback) {
-    db.all('SELECT * FROM workfaces', (err, rows) => {
+    db.all('SELECT * FROM workfaces ORDER BY sort_order ASC, id ASC', (err, rows) => {
         if (err) {
             console.error('Error loading workfaces:', err.message);
             callback([]);
@@ -280,12 +375,12 @@ function loadWorkfaces(callback) {
 }
 
 // 保存工作面列表
-function saveWorkface(id, name, type, callback) {
+function saveWorkface(id, name, type, sortOrder, callback) {
     const sql = isMysqlMode()
-        ? `INSERT INTO workfaces (id, name, type) VALUES (?, ?, ?)
-           ON DUPLICATE KEY UPDATE name = VALUES(name), type = VALUES(type)`
-        : 'INSERT OR REPLACE INTO workfaces (id, name, type) VALUES (?, ?, ?)';
-    db.run(sql, [id, name, type], function(err) {
+        ? `INSERT INTO workfaces (id, name, type, sort_order) VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name = VALUES(name), type = VALUES(type), sort_order = VALUES(sort_order)`
+        : 'INSERT OR REPLACE INTO workfaces (id, name, type, sort_order) VALUES (?, ?, ?, ?)';
+    db.run(sql, [id, name, type, sortOrder], function(err) {
         if (err) {
             console.error('Error saving workface:', err.message);
             callback(false, err.message);
@@ -371,6 +466,86 @@ function deleteField(fieldId, callback) {
     });
 }
 
+function normalizeViewLayoutConfig(config) {
+    const rawList = Array.isArray(config) ? config : [];
+    const incomingMap = new Map(
+        rawList
+            .filter(item => item && String(item.key || '').trim())
+            .map(item => [String(item.key).trim(), item])
+    );
+    const defaultKeys = new Set(DEFAULT_VIEW_LAYOUT.map(item => item.key));
+    const normalizeList = (value, fallback) => {
+        const source = Array.isArray(value) ? value : fallback;
+        const normalized = source
+            .map(item => String(item || '').trim())
+            .filter(Boolean);
+        return Array.from(new Set(normalized));
+    };
+    const normalizedDefaults = DEFAULT_VIEW_LAYOUT.map((item) => {
+        const custom = incomingMap.get(item.key) || {};
+        return {
+            key: item.key,
+            name: String(custom.name || item.name),
+            visible: typeof custom.visible === 'boolean' ? custom.visible : item.visible,
+            sort: Number.isFinite(Number(custom.sort)) ? Number(custom.sort) : item.sort,
+            groups: normalizeList(custom.groups, item.groups || []),
+            fields: normalizeList(custom.fields, item.fields || [])
+        };
+    });
+    const normalizedCustoms = rawList
+        .filter(item => item && !defaultKeys.has(String(item.key || '').trim()))
+        .map(item => {
+            const key = String(item.key || '').trim();
+            if (!key) return null;
+            return {
+                key,
+                name: String(item.name || key),
+                visible: typeof item.visible === 'boolean' ? item.visible : true,
+                sort: Number.isFinite(Number(item.sort)) ? Number(item.sort) : 999,
+                groups: normalizeList(item.groups, ['共用']),
+                fields: normalizeList(item.fields, [])
+            };
+        })
+        .filter(Boolean);
+
+    return [...normalizedDefaults, ...normalizedCustoms].sort((a, b) => a.sort - b.sort);
+}
+
+function getViewLayoutConfig(callback) {
+    db.get('SELECT setting_value FROM app_settings WHERE setting_key = ?', ['viewLayout'], (err, row) => {
+        if (err) {
+            console.error('Error loading view layout:', err.message);
+            callback(DEFAULT_VIEW_LAYOUT);
+            return;
+        }
+
+        try {
+            const parsed = row?.setting_value ? JSON.parse(row.setting_value) : DEFAULT_VIEW_LAYOUT;
+            callback(normalizeViewLayoutConfig(parsed));
+        } catch (error) {
+            console.error('Error parsing view layout:', error.message);
+            callback(DEFAULT_VIEW_LAYOUT);
+        }
+    });
+}
+
+function saveViewLayoutConfig(config, callback) {
+    const normalized = normalizeViewLayoutConfig(config);
+    const sql = isMysqlMode()
+        ? `INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`
+        : 'INSERT OR REPLACE INTO app_settings (setting_key, setting_value) VALUES (?, ?)';
+
+    db.run(sql, ['viewLayout', JSON.stringify(normalized)], (err) => {
+        if (err) {
+            console.error('Error saving view layout:', err.message);
+            callback(false, normalized);
+            return;
+        }
+        callback(true, normalized);
+    });
+}
+
 // 工具函数
 async function runStatement(sql, params = []) {
     const [result] = await pool.query(sql, params);
@@ -381,7 +556,9 @@ function createDbAdapter(mysqlPool) {
     return {
         run(sql, params, callback) {
             const safeParams = Array.isArray(params) ? params : [];
-            const safeCallback = typeof callback === 'function' ? callback : () => {};
+            const safeCallback = typeof params === 'function'
+                ? params
+                : (typeof callback === 'function' ? callback : () => {});
             mysqlPool.query(sql, safeParams)
                 .then(([result]) => {
                     safeCallback.call({ lastID: result.insertId, changes: result.affectedRows }, null);
@@ -392,14 +569,18 @@ function createDbAdapter(mysqlPool) {
         },
         all(sql, params, callback) {
             const safeParams = Array.isArray(params) ? params : [];
-            const safeCallback = typeof callback === 'function' ? callback : () => {};
+            const safeCallback = typeof params === 'function'
+                ? params
+                : (typeof callback === 'function' ? callback : () => {});
             mysqlPool.query(sql, safeParams)
                 .then(([rows]) => safeCallback(null, rows))
                 .catch((err) => safeCallback(err, []));
         },
         get(sql, params, callback) {
             const safeParams = Array.isArray(params) ? params : [];
-            const safeCallback = typeof callback === 'function' ? callback : () => {};
+            const safeCallback = typeof params === 'function'
+                ? params
+                : (typeof callback === 'function' ? callback : () => {});
             mysqlPool.query(sql, safeParams)
                 .then(([rows]) => safeCallback(null, rows[0] || null))
                 .catch((err) => safeCallback(err, null));
@@ -424,6 +605,16 @@ async function initDatabase() {
         db = createDbAdapter(pool);
         console.log('Connected to the MySQL database.');
         await createTables();
+        try {
+            await runStatement('ALTER TABLE daily ADD COLUMN extraData LONGTEXT');
+        } catch (migrationErr) {
+            // Ignore duplicate-column errors in existing databases.
+        }
+        try {
+            await runStatement('ALTER TABLE workfaces ADD COLUMN sort_order INT DEFAULT 0');
+        } catch (migrationErr) {
+            // Ignore duplicate-column errors in existing databases.
+        }
         insertDefaultData();
     } catch (err) {
         console.warn(`MySQL 不可用，已回退到 SQLite: ${err.message}`);
@@ -479,10 +670,51 @@ function getSingleQuery(sql, params, callback) {
 
 function attachDailyAliases(row) {
     if (!row) return row;
+    let extraData = {};
+    if (row.extraData) {
+        try {
+            const parsed = typeof row.extraData === 'string' ? JSON.parse(row.extraData) : row.extraData;
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                extraData = parsed;
+            }
+        } catch (err) {
+            extraData = {};
+        }
+    }
     return {
         ...row,
+        ...extraData,
         dailyMaxRings: row.dailyMaxRings ?? row.suggestedRings ?? 0
     };
+}
+
+const DAILY_STANDARD_FIELDS = new Set([
+    'id', 'date', 'workface', 'dailyMaxRings',
+    'suggestedRings', 'suggestedBy',
+    'actualNight', 'actualNightBy',
+    'actualMorning', 'actualMorningBy',
+    'actualMiddle', 'actualMiddleBy',
+    'jiaoyunLane', 'jiaoyunLaneBy',
+    'huifengLane', 'huifengLaneBy',
+    'deformationValue', 'deformationValueBy',
+    'deformationNormalMin', 'deformationNormalMax',
+    'pressureCycle', 'pressureCycleBy',
+    'daysSincePressure',
+    'hangingRoof', 'hangingRoofBy',
+    'surfaceSettlement', 'surfaceSettlementBy',
+    'conclusion', 'conclusionBy',
+    'remark', 'filledBy', 'createdAt', 'status',
+    'token', '_auth', 'extraData'
+]);
+
+function extractCustomDailyFields(body) {
+    const result = {};
+    Object.entries(body || {}).forEach(([key, value]) => {
+        if (DAILY_STANDARD_FIELDS.has(key)) return;
+        if (!key || key.startsWith('_')) return;
+        result[key] = value === undefined || value === null ? '' : String(value);
+    });
+    return result;
 }
 
 function parseNullableNumber(value) {
@@ -634,6 +866,27 @@ app.delete('/api/fields/:fieldId', requireAdmin, (req, res) => {
     });
 });
 
+app.get('/api/view-layout', (req, res) => {
+    getViewLayoutConfig((config) => {
+        res.json(config);
+    });
+});
+
+app.put('/api/view-layout', requireAdmin, (req, res) => {
+    const config = Array.isArray(req.body) ? req.body : req.body?.config;
+    if (!Array.isArray(config)) {
+        return res.status(400).json({ error: '配置格式不正确' });
+    }
+
+    saveViewLayoutConfig(config, (success, normalized) => {
+        if (success) {
+            res.json({ success: true, config: normalized });
+        } else {
+            res.status(500).json({ error: '保存失败' });
+        }
+    });
+});
+
 // ===== 工作面管理 API =====
 app.get('/api/workfaces', (req, res) => {
     loadWorkfaces((workfaces) => {
@@ -642,7 +895,7 @@ app.get('/api/workfaces', (req, res) => {
 });
 
 app.post('/api/workfaces', requireAdmin, (req, res) => {
-    const { id, name, type } = req.body;
+    const { id, name, type, sort } = req.body;
     if (!id || !name) {
         return res.status(400).json({ error: '工作面ID和名称不能为空' });
     }
@@ -653,22 +906,27 @@ app.post('/api/workfaces', requireAdmin, (req, res) => {
             return res.status(400).json({ error: '工作面ID已存在' });
         }
         
-        // 保存新工作面
-        saveWorkface(id, name, type || '采煤', (success, errorMsg) => {
-            if (success) {
-                loadWorkfaces((workfaces) => {
-                    res.json({ success: true, workfaces });
-                });
-            } else {
-                res.status(500).json({ error: '保存失败: ' + (errorMsg || '未知错误') });
-            }
+        getSingleQuery('SELECT MAX(sort_order) AS max_sort FROM workfaces', [], (sortRow) => {
+            const sortOrder = Number.isFinite(Number(sort))
+                ? Number(sort)
+                : (Number(sortRow?.max_sort) || 0) + 1;
+            // 保存新工作面
+            saveWorkface(id, name, type || '采煤', sortOrder, (success, errorMsg) => {
+                if (success) {
+                    loadWorkfaces((workfaces) => {
+                        res.json({ success: true, workfaces });
+                    });
+                } else {
+                    res.status(500).json({ error: '保存失败: ' + (errorMsg || '未知错误') });
+                }
+            });
         });
     });
 });
 
 app.put('/api/workfaces/:id', requireAdmin, (req, res) => {
     const { id } = req.params;
-    const { name, type } = req.body;
+    const { name, type, sort } = req.body;
     
     // 检查工作面是否存在
     getSingleQuery('SELECT * FROM workfaces WHERE id = ?', [id], (row) => {
@@ -677,7 +935,8 @@ app.put('/api/workfaces/:id', requireAdmin, (req, res) => {
         }
         
         // 更新工作面
-        saveWorkface(id, name, type || row.type || '采煤', (success) => {
+        const sortOrder = Number.isFinite(Number(sort)) ? Number(sort) : (Number(row.sort_order) || 0);
+        saveWorkface(id, name, type || row.type || '采煤', sortOrder, (success) => {
             if (success) {
                 loadWorkfaces((workfaces) => {
                     res.json({ success: true, workfaces });
@@ -1052,6 +1311,7 @@ app.post('/api/daily', requireAuth, (req, res) => {
         createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
         status: 'completed'  // 数据填写完成后设置为已完成状态
     };
+    const incomingCustomFields = extractCustomDailyFields(req.body);
     
     // 检查是否已存在（同一天+同一工作面）
     getSingleQuery('SELECT * FROM daily WHERE date = ? AND workface = ?', [item.date, item.workface], (existing) => {
@@ -1090,6 +1350,22 @@ app.post('/api/daily', requireAuth, (req, res) => {
             if (hasField('conclusion')) fieldsToUpdate.conclusion = item.conclusion;
             if (hasField('conclusionBy')) fieldsToUpdate.conclusionBy = item.conclusionBy;
             if (hasField('remark')) fieldsToUpdate.remark = item.remark;
+
+            const existingCustom = (() => {
+                try {
+                    const parsed = existing.extraData ? JSON.parse(existing.extraData) : {};
+                    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+                } catch (err) {
+                    return {};
+                }
+            })();
+            Object.entries(incomingCustomFields).forEach(([key, value]) => {
+                existingCustom[key] = value;
+            });
+            const normalizedCustom = JSON.stringify(existingCustom);
+            if ((existing.extraData || '{}') !== normalizedCustom) {
+                fieldsToUpdate.extraData = normalizedCustom;
+            }
             fieldsToUpdate.status = item.status;
             
             // 检查哪些字段发生了变化
@@ -1132,8 +1408,8 @@ app.post('/api/daily', requireAuth, (req, res) => {
                 huifengLane, huifengLaneBy, deformationValue, deformationValueBy, deformationNormalMin, 
                 deformationNormalMax, pressureCycle, pressureCycleBy, daysSincePressure, hangingRoof, 
                 hangingRoofBy, surfaceSettlement, surfaceSettlementBy, conclusion, conclusionBy, 
-                remark, filledBy, createdAt, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                remark, extraData, filledBy, createdAt, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
             
             const params = [
                 item.id, item.date, item.workface, item.suggestedRings, item.suggestedBy, item.actualNight, item.actualNightBy,
@@ -1141,7 +1417,7 @@ app.post('/api/daily', requireAuth, (req, res) => {
                 item.huifengLane, item.huifengLaneBy, item.deformationValue, item.deformationValueBy, item.deformationNormalMin,
                 item.deformationNormalMax, item.pressureCycle, item.pressureCycleBy, item.daysSincePressure, item.hangingRoof,
                 item.hangingRoofBy, item.surfaceSettlement, item.surfaceSettlementBy, item.conclusion, item.conclusionBy,
-                item.remark, item.filledBy, item.createdAt, item.status
+                item.remark, JSON.stringify(incomingCustomFields), item.filledBy, item.createdAt, item.status
             ];
             
             runQuery(sql, params, (success) => {

@@ -229,6 +229,23 @@
         body.dark-mode .empty-state {
             color: #b0b0b0;
         }
+
+        body.dark-mode .modal-card {
+            background: #2d2d2d;
+        }
+
+        body.dark-mode .modal-card h3 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-card p {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .modal-cancel {
+            background: #3d3d3d;
+            color: #e0e0e0;
+        }
         
         .login-btn {
             background: rgba(255,255,255,0.2);
@@ -255,6 +272,66 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+        }
+
+        .modal-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-mask.show {
+            display: flex;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 360px;
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+        }
+
+        .modal-card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #777;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+
+        .modal-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .modal-cancel {
+            background: #eef1f4;
+            color: #444;
+        }
+
+        .modal-submit {
+            background: #1976d2;
+            color: white;
         }
         
         .tabs {
@@ -616,7 +693,24 @@
         </div>
     </div>
     
-    <!-- 登录弹窗已移除 -->
+    <div class="modal-mask" id="viewerLoginModal">
+        <div class="modal-card">
+            <h3>查看登录</h3>
+            <p>使用查看用户账号登录后，首页会按后台配置显示可查看的内容块。</p>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="viewerUsername" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="viewerPassword" placeholder="请输入密码">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="modal-cancel" onclick="closeViewerLogin()">取消</button>
+                <button type="button" class="modal-submit" onclick="submitViewerLogin()">登录</button>
+            </div>
+        </div>
+    </div>
     
     <div class="tabs">
         <button class="tab-btn active" data-tab="view">📊 数据展示</button>
@@ -646,8 +740,9 @@
                 </div>
             </div>
             
+            <div id="viewBlocksContainer">
             <!-- 生产组织 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-production" data-view-block="production">
                 <div class="form-title danger">🏭 生产组织</div>
                 <div class="form-row">
                     <div class="form-group">
@@ -675,14 +770,30 @@
                     💡 今日累计: <strong id="totalRings">未填写</strong>
                 </div>
                 
-                <div class="form-title" style="margin-top:20px;">📊 过去7日刀数趋势</div>
+                <div class="form-title" style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <span id="ringsChartTitle">📊 过去7日刀数趋势</span>
+                    <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#666;">
+                        <span>查看周期</span>
+                        <select id="ringsRange" style="padding:6px 10px;border:1px solid #d9d9d9;border-radius:8px;background:#fff;">
+                            <option value="7" selected>7天</option>
+                            <option value="15">15天</option>
+                            <option value="30">30天</option>
+                            <option value="custom">自定义</option>
+                        </select>
+                        <span id="ringsCustomRange" style="display:none;align-items:center;gap:6px;">
+                            <input type="date" id="ringsStartDate" style="padding:6px 8px;border:1px solid #d9d9d9;border-radius:8px;background:#fff;">
+                            <span>至</span>
+                            <input type="date" id="ringsEndDate" style="padding:6px 8px;border:1px solid #d9d9d9;border-radius:8px;background:#fff;">
+                        </span>
+                    </span>
+                </div>
                 <div style="height: 300px; margin-top: 10px;">
                     <canvas id="ringsChart"></canvas>
                 </div>
             </div>
             
             <!-- 工作面位置 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-position" data-view-block="position">
                 <div class="form-title danger">📍 工作面位置 <span style="color:#1976d2;font-size:12px;font-weight:normal;">（每日早上填写）</span></div>
                 <div class="form-row-2">
                     <div class="form-group">
@@ -697,7 +808,7 @@
             </div>
             
             <!-- 变形监测 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-deformation" data-view-block="deformation">
                 <div class="form-title danger">📏 变形监测</div>
                 <div class="form-row-2">
                     <div class="form-group">
@@ -720,7 +831,7 @@
             </div>
             
             <!-- 周期来压 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-pressure" data-view-block="pressure">
                 <div class="form-title danger">💥 周期来压情况</div>
                 <div class="warning-box">
                     💡 正常周期约 6 天来压一次
@@ -742,7 +853,7 @@
             </div>
             
             <!-- 悬顶情况 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-hanging" data-view-block="hanging">
                 <div class="form-title danger">🏗️ 机尾悬顶垮落情况</div>
                 <div class="form-group">
                     <label>悬顶长度（米）</label>
@@ -751,7 +862,7 @@
             </div>
             
             <!-- 地表沉降 -->
-            <div class="form-card section-card">
+            <div class="form-card section-card" id="view-block-settlement" data-view-block="settlement">
                 <div class="form-title danger">🌊 地表沉降情况（地测部测定）</div>
                 <div class="form-group">
                     <label>沉降值（mm）</label>
@@ -760,7 +871,7 @@
             </div>
             
             <!-- 备注 -->
-            <div class="form-card">
+            <div class="form-card" id="view-block-remark" data-view-block="remark">
                 <div class="form-group">
                     <label>备注</label>
                     <input type="text" readonly id="remark" placeholder="其他需要说明的情况...">
@@ -768,7 +879,7 @@
             </div>
             
             <!-- 综合研判结论 -->
-            <div class="form-card section-card" style="border-left-color: #ff6f00;">
+            <div class="form-card section-card" id="view-block-conclusion" data-view-block="conclusion" style="border-left-color: #ff6f00;">
                 <div class="form-title danger" style="border-bottom-color:#fff3e0;">📋 综合研判结论（防冲管理部指导）</div>
                 <div class="form-group">
                     <textarea id="conclusion" readonly rows="4" placeholder="根据当日生产数据、变形监测、来压情况、悬顶状态等综合分析得出的风险结论..." style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;"></textarea>
@@ -776,6 +887,7 @@
             </div>
             
             <!-- 提交按钮已禁用 -->
+            </div>
         </form>
     </div>
     
@@ -902,6 +1014,280 @@
         async function adminFetch(url, options = {}) {
             const headers = { ...(options.headers || {}), ...getAdminHeaders() };
             return fetch(url, { ...options, headers });
+        }
+
+        const VIEW_BLOCK_PERMISSION_MAP = {
+            production: 'view_production',
+            position: 'view_position',
+            deformation: 'view_deformation',
+            pressure: 'view_pressure',
+            hanging: 'view_hanging',
+            settlement: 'view_settlement',
+            remark: 'view_remark',
+            conclusion: 'view_conclusion',
+            history: 'view_history'
+        };
+        const DEFAULT_VIEW_LAYOUT = [
+            { key: 'production', visible: true, sort: 1, groups: ['采煤'], fields: ['suggestedRings', 'actualMiddle', 'actualNight', 'actualMorning'] },
+            { key: 'position', visible: true, sort: 2, groups: ['掘进'], fields: ['jiaoyunLane', 'huifengLane'] },
+            { key: 'deformation', visible: true, sort: 3, groups: ['掘进'], fields: ['deformationNormalMin', 'deformationNormalMax', 'deformationValue'] },
+            { key: 'pressure', visible: true, sort: 4, groups: ['掘进'], fields: ['pressureCycle', 'daysSincePressure'] },
+            { key: 'hanging', visible: true, sort: 5, groups: ['掘进'], fields: ['hangingRoof'] },
+            { key: 'settlement', visible: true, sort: 6, groups: ['掘进'], fields: ['surfaceSettlement'] },
+            { key: 'remark', visible: true, sort: 7, groups: ['共用'], fields: ['remark'] },
+            { key: 'conclusion', visible: true, sort: 8, groups: ['掘进'], fields: ['conclusion'] }
+        ];
+        let currentViewLayoutConfig = DEFAULT_VIEW_LAYOUT.slice();
+        let currentWorkfaces = [];
+        let currentFieldMeta = {};
+        let currentDailyData = null;
+        const SYSTEM_VIEW_BLOCK_KEYS = new Set(DEFAULT_VIEW_LAYOUT.map(item => item.key));
+        const VIEW_FIELD_META_FALLBACK = {
+            deformationNormalMin: { name: '正常范围最小值', unit: 'mm' },
+            deformationNormalMax: { name: '正常范围最大值', unit: 'mm' },
+            daysSincePressure: { name: '距上次来压天数', unit: '天' },
+            remark: { name: '备注' }
+        };
+        const tabs = document.querySelectorAll('.tab-btn');
+        const pages = document.querySelectorAll('.page');
+
+        function getViewerPermissions() {
+            const rawPermissions = JSON.parse(localStorage.getItem('viewerFields') || '[]');
+            const permissions = Array.isArray(rawPermissions) ? rawPermissions : [];
+            const hasNewViewPermissions = permissions.some(item => String(item).startsWith('view_'));
+            if (hasNewViewPermissions) {
+                return permissions;
+            }
+
+            const mapped = new Set();
+            if (permissions.some(item => ['suggestedRings', 'actualMiddle', 'actualNight', 'actualMorning'].includes(item))) {
+                mapped.add('view_production');
+            }
+            if (permissions.some(item => ['jiaoyunLane', 'huifengLane'].includes(item))) {
+                mapped.add('view_position');
+            }
+            if (permissions.includes('deformationValue')) {
+                mapped.add('view_deformation');
+            }
+            if (permissions.includes('pressureCycle')) {
+                mapped.add('view_pressure');
+            }
+            if (permissions.includes('hangingRoof')) {
+                mapped.add('view_hanging');
+            }
+            if (permissions.includes('surfaceSettlement')) {
+                mapped.add('view_settlement');
+            }
+            if (permissions.includes('conclusion')) {
+                mapped.add('view_conclusion');
+            }
+
+            mapped.add('view_history');
+            return Array.from(mapped);
+        }
+
+        function getViewerRole() {
+            return localStorage.getItem('viewerRole') || '';
+        }
+
+        function hasViewPermission(permissionKey) {
+            const role = getViewerRole();
+            if (role !== 'viewer') return true;
+            return getViewerPermissions().includes(permissionKey);
+        }
+
+        function getLayoutItem(key) {
+            return currentViewLayoutConfig.find(item => item.key === key) || DEFAULT_VIEW_LAYOUT.find(item => item.key === key) || { key, visible: true, sort: 999, groups: ['共用'], fields: [] };
+        }
+
+        async function loadFieldMeta() {
+            try {
+                const res = await fetch('/api/fields');
+                const fields = await res.json();
+                currentFieldMeta = { ...(fields || {}), ...VIEW_FIELD_META_FALLBACK };
+            } catch (error) {
+                currentFieldMeta = { ...VIEW_FIELD_META_FALLBACK };
+            }
+        }
+
+        function formatCustomFieldValue(fieldId, rawValue) {
+            if (!isFilledValue(rawValue)) {
+                return '未填写';
+            }
+            const unitMap = {
+                suggestedRings: '刀',
+                actualMiddle: '刀',
+                actualNight: '刀',
+                actualMorning: '刀',
+                deformationValue: 'mm',
+                deformationNormalMin: 'mm',
+                deformationNormalMax: 'mm',
+                daysSincePressure: '天',
+                hangingRoof: '米',
+                surfaceSettlement: 'mm'
+            };
+            const unit = unitMap[fieldId] || currentFieldMeta[fieldId]?.unit || '';
+            return unit ? `${rawValue} ${unit}` : String(rawValue);
+        }
+
+        function renderCustomBlocks() {
+            const container = document.getElementById('viewBlocksContainer');
+            if (!container) return;
+            container.querySelectorAll('[data-custom-view-block="1"]').forEach(node => node.remove());
+
+            const customItems = currentViewLayoutConfig.filter(item => !SYSTEM_VIEW_BLOCK_KEYS.has(item.key));
+            customItems.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = 'form-card section-card';
+                card.setAttribute('data-view-block', item.key);
+                card.setAttribute('data-custom-view-block', '1');
+
+                const title = document.createElement('div');
+                title.className = 'form-title danger';
+                title.textContent = item.name || item.key;
+                card.appendChild(title);
+
+                const fields = Array.isArray(item.fields) ? item.fields : [];
+                if (fields.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    empty.textContent = '未配置栏目';
+                    card.appendChild(empty);
+                } else {
+                    fields.forEach((fieldId) => {
+                        const row = document.createElement('div');
+                        row.className = 'record-row';
+                        row.style.marginBottom = '8px';
+
+                        const left = document.createElement('span');
+                        left.textContent = currentFieldMeta[fieldId]?.name || fieldId;
+                        const right = document.createElement('span');
+                        right.textContent = formatCustomFieldValue(fieldId, currentDailyData?.[fieldId]);
+
+                        row.appendChild(left);
+                        row.appendChild(right);
+                        card.appendChild(row);
+                    });
+                }
+
+                container.appendChild(card);
+            });
+        }
+
+        function getSelectedWorkfaceType() {
+            const workfaceId = document.getElementById('workface')?.value || localStorage.getItem('selectedWorkface') || '';
+            return currentWorkfaces.find(item => item.id === workfaceId)?.type || '';
+        }
+
+        function blockSupportsWorkfaceType(layoutItem, workfaceType) {
+            const groups = Array.isArray(layoutItem.groups) ? layoutItem.groups : [];
+            if (!workfaceType || groups.length === 0) {
+                return true;
+            }
+            return groups.includes('共用') || groups.includes(workfaceType);
+        }
+
+        async function loadViewLayoutConfig() {
+            try {
+                const res = await fetch('/api/view-layout');
+                const config = await res.json();
+                if (Array.isArray(config) && config.length > 0) {
+                    currentViewLayoutConfig = config;
+                } else {
+                    currentViewLayoutConfig = DEFAULT_VIEW_LAYOUT.slice();
+                }
+            } catch (error) {
+                currentViewLayoutConfig = DEFAULT_VIEW_LAYOUT.slice();
+            }
+            applyViewLayoutConfig();
+        }
+
+        function applyViewLayoutConfig() {
+            const container = document.getElementById('viewBlocksContainer');
+            if (!container) return;
+            renderCustomBlocks();
+            const ordered = currentViewLayoutConfig.slice().sort((a, b) => (a.sort || 999) - (b.sort || 999));
+            ordered.forEach(item => {
+                const block = container.querySelector(`[data-view-block="${item.key}"]`);
+                if (block) {
+                    container.appendChild(block);
+                }
+            });
+            applyViewPermissions();
+        }
+
+        function openViewerLogin() {
+            document.getElementById('viewerLoginModal').classList.add('show');
+        }
+
+        function closeViewerLogin() {
+            document.getElementById('viewerLoginModal').classList.remove('show');
+        }
+
+        async function submitViewerLogin() {
+            const username = document.getElementById('viewerUsername').value.trim();
+            const password = document.getElementById('viewerPassword').value;
+            if (!username || !password) {
+                showToast('请输入用户名和密码');
+                return;
+            }
+
+            const res = await fetch('/api/users/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showToast(data.error || '登录失败');
+                return;
+            }
+
+            localStorage.setItem('viewerToken', data.token || '');
+            localStorage.setItem('viewerName', data.user?.name || username);
+            localStorage.setItem('viewerRole', data.user?.role || '');
+            localStorage.setItem('viewerFields', JSON.stringify(data.user?.fields || []));
+            closeViewerLogin();
+            updateUserUI();
+            applyViewPermissions();
+            showToast('查看权限已生效');
+        }
+
+        function logoutViewer() {
+            localStorage.removeItem('viewerToken');
+            localStorage.removeItem('viewerName');
+            localStorage.removeItem('viewerRole');
+            localStorage.removeItem('viewerFields');
+            updateUserUI();
+            applyViewPermissions();
+            showToast('已退出查看登录');
+        }
+
+        function applyViewPermissions() {
+            const isViewer = getViewerRole() === 'viewer';
+            const historyTab = document.querySelector('.tab-btn[data-tab="history"]');
+            const historyPage = document.getElementById('historyPage');
+            const historyAllowed = hasViewPermission(VIEW_BLOCK_PERMISSION_MAP.history);
+            const selectedWorkfaceType = getSelectedWorkfaceType();
+            currentViewLayoutConfig.map(item => item.key).forEach((key) => {
+                const block = document.querySelector(`[data-view-block="${key}"]`);
+                if (!block) return;
+                const layoutItem = getLayoutItem(key);
+                const permissionKey = VIEW_BLOCK_PERMISSION_MAP[key];
+                const viewerAllowed = permissionKey ? hasViewPermission(permissionKey) : true;
+                const typeAllowed = blockSupportsWorkfaceType(layoutItem, selectedWorkfaceType);
+                block.style.display = (layoutItem.visible && viewerAllowed && typeAllowed) ? '' : 'none';
+            });
+
+            if (historyTab) {
+                historyTab.style.display = (!isViewer || historyAllowed) ? '' : 'none';
+            }
+            if (isViewer && !historyAllowed && historyPage.classList.contains('active')) {
+                pages.forEach(p => p.classList.remove('active'));
+                tabs.forEach(t => t.classList.remove('active'));
+                document.getElementById('viewPage').classList.add('active');
+                document.querySelector('.tab-btn[data-tab="view"]').classList.add('active');
+            }
         }
 
         function isAdminLoggedIn() {
@@ -1058,24 +1444,76 @@
             loadRingsChart(workface);
         }
         
-        // 加载过去7天的刀数数据并绘制图表
+        // 加载指定周期的刀数数据并绘制图表
+        function getRecentDateRange(days) {
+            const result = [];
+            const today = new Date();
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                result.push(d.toISOString().split('T')[0]);
+            }
+            return result;
+        }
+
+        function getCustomDateRange(startDate, endDate) {
+            if (!startDate || !endDate) return [];
+            const start = new Date(startDate + 'T00:00:00');
+            const end = new Date(endDate + 'T00:00:00');
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+            const result = [];
+            const cursor = new Date(start);
+            while (cursor <= end && result.length < 180) {
+                result.push(cursor.toISOString().split('T')[0]);
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            return result;
+        }
+
         async function loadRingsChart(workface) {
             const res = await fetch('/api/daily');
             const allData = await res.json();
+            const rangeMode = document.getElementById('ringsRange')?.value || '7';
             
             // 过滤出该工作面的数据
             const wfData = allData.filter(d => d.workface === workface);
             
-            // 计算过去7天的日期
+            // 计算指定周期的日期
+            let dateRange = [];
+            if (rangeMode === 'custom') {
+                const startDate = document.getElementById('ringsStartDate')?.value || '';
+                const endDate = document.getElementById('ringsEndDate')?.value || '';
+                dateRange = getCustomDateRange(startDate, endDate);
+                if (dateRange.length === 0) {
+                    dateRange = getRecentDateRange(7);
+                }
+            } else {
+                dateRange = getRecentDateRange(Number(rangeMode || 7));
+            }
             const dates = [];
             const rings = [];
-            const today = new Date();
+            const dailyLimits = [];
+            const dailyEnergy = [];
+            const highPowerEvents = [];
+            const titleMap = {
+                7: '📊 过去7日刀数趋势',
+                15: '📊 过去15日刀数趋势',
+                30: '📊 过去30日刀数趋势'
+            };
+            const titleEl = document.getElementById('ringsChartTitle');
+            if (titleEl) {
+                if (rangeMode === 'custom') {
+                    const start = dateRange[0] || '';
+                    const end = dateRange[dateRange.length - 1] || '';
+                    titleEl.textContent = start && end ? `📊 自定义区间刀数趋势（${start} ~ ${end}）` : '📊 自定义区间刀数趋势';
+                } else {
+                    const rangeDays = Number(rangeMode || 7);
+                    titleEl.textContent = titleMap[rangeDays] || `📊 过去${rangeDays}日刀数趋势`;
+                }
+            }
             
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                const dateStr = date.toISOString().split('T')[0];
-                dates.push(dateStr.substring(5)); // 只显示月-日
+            dateRange.forEach((dateStr) => {
+                dates.push(dateStr.substring(5)); // 显示月-日
                 
                 // 找到该日期的数据
                 const dayData = wfData.find(d => d.date === dateStr);
@@ -1084,10 +1522,16 @@
                     const night = parseFloat(dayData.actualNight) || 0;
                     const morning = parseFloat(dayData.actualMorning) || 0;
                     rings.push((middle + night + morning).toFixed(1));
+                    dailyLimits.push(dayData.dailyMaxRings ?? dayData.suggestedRings ?? null);
+                    dailyEnergy.push(dayData.dangrizongnengliang === '' || dayData.dangrizongnengliang === undefined ? null : Number(dayData.dangrizongnengliang));
+                    highPowerEvents.push(dayData.dangrisicifangyishang === '' || dayData.dangrisicifangyishang === undefined ? null : Number(dayData.dangrisicifangyishang));
                 } else {
                     rings.push(0);
+                    dailyLimits.push(null);
+                    dailyEnergy.push(null);
+                    highPowerEvents.push(null);
                 }
-            }
+            });
             
             // 绘制图表
             const ctx = document.getElementById('ringsChart').getContext('2d');
@@ -1099,16 +1543,60 @@
             
             // 创建新图表
             ringsChart = new Chart(ctx, {
-                type: 'bar',
+                type: dateRange.length > 7 ? 'line' : 'bar',
                 data: {
                     labels: dates,
-                    datasets: [{
-                        label: '每日刀数',
-                        data: rings,
-                        backgroundColor: 'rgba(25, 118, 210, 0.6)',
-                        borderColor: 'rgba(25, 118, 210, 1)',
-                        borderWidth: 1
-                    }]
+                    datasets: [
+                        {
+                            label: '实际刀数',
+                            data: rings,
+                            backgroundColor: 'rgba(25, 118, 210, 0.6)',
+                            borderColor: 'rgba(25, 118, 210, 1)',
+                            borderWidth: 1,
+                            tension: 0.25,
+                            fill: false,
+                            pointRadius: dateRange.length > 7 ? 3 : 0,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: '当日限制最大刀数',
+                            data: dailyLimits,
+                            type: 'line',
+                            backgroundColor: 'rgba(255, 111, 0, 0.15)',
+                            borderColor: 'rgba(255, 111, 0, 1)',
+                            borderWidth: 2,
+                            tension: 0.2,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            spanGaps: true
+                        },
+                        {
+                            label: '当日总能量',
+                            data: dailyEnergy,
+                            type: 'line',
+                            borderColor: 'rgba(211, 47, 47, 1)',
+                            backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                            borderWidth: 2,
+                            tension: 0.2,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            spanGaps: true,
+                            yAxisID: 'yEnergy'
+                        },
+                        {
+                            label: '四次方以上事件数',
+                            data: highPowerEvents,
+                            type: 'bar',
+                            backgroundColor: 'rgba(76, 175, 80, 0.55)',
+                            borderColor: 'rgba(56, 142, 60, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'yEvent',
+                            barPercentage: dateRange.length > 7 ? 0.45 : 0.35,
+                            categoryPercentage: 0.78
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -1119,6 +1607,29 @@
                             title: {
                                 display: true,
                                 text: '刀数'
+                            }
+                        },
+                        yEnergy: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: '总能量'
+                            }
+                        },
+                        yEvent: {
+                            beginAtZero: true,
+                            position: 'right',
+                            offset: true,
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: '事件数'
                             }
                         },
                         x: {
@@ -1132,7 +1643,11 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `刀数: ${context.parsed.y}`;
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    if (label.includes('总能量')) return `${label}: ${value ?? '-'} J`;
+                                    if (label.includes('事件数')) return `${label}: ${value ?? '-'} 次`;
+                                    return `${label}: ${value ?? '-'} 刀`;
                                 }
                             }
                         },
@@ -1142,7 +1657,9 @@
                         },
                         // 添加数据标签
                         datalabels: {
-                            display: true,
+                            display: function(context) {
+                                return context.dataset.label === '实际刀数';
+                            },
                             color: 'rgba(25, 118, 210, 1)',
                             font: {
                                 weight: 'bold'
@@ -1163,6 +1680,7 @@
             const data = allData ? allData.find(d => d.workface === workface) : null;
             
             if (data) {
+                currentDailyData = data;
                 document.getElementById('dataId').value = data.id || '';
                 // 不设置workface的值，避免触发onchange事件重置日期
                 // document.getElementById('workface').value = data.workface || '';
@@ -1185,7 +1703,9 @@
                 
                 calcTotalRings();
                 checkDeformation();
+                applyViewLayoutConfig();
             } else {
+                currentDailyData = null;
                 document.getElementById('dataId').value = '';
                 // 保存当前日期和workface的值，避免reset()清除它们
                 const currentDate = document.getElementById('dataDate').value;
@@ -1195,6 +1715,7 @@
                 document.getElementById('workface').value = currentWorkface;
                 document.getElementById('totalRings').textContent = '未填写';
                 document.getElementById('deformationResult').textContent = '-';
+                applyViewLayoutConfig();
             }
         }
         
@@ -1445,8 +1966,17 @@
         // 页面加载时的初始化
         function updateUserUI() {
             const userSection = document.getElementById('userSection');
-            // 移除登录相关功能
-            userSection.innerHTML = '';
+            const viewerName = localStorage.getItem('viewerName');
+            if (viewerName) {
+                userSection.innerHTML = `
+                    <div class="user-logged">
+                        <span class="user-name">👤 ${viewerName}</span>
+                        <button class="logout-btn" onclick="logoutViewer()">退出查看</button>
+                    </div>
+                `;
+            } else {
+                userSection.innerHTML = `<button class="login-btn" onclick="openViewerLogin()">查看登录</button>`;
+            }
             const publicUsersTab = document.getElementById('publicUsersTab');
             if (publicUsersTab) {
                 publicUsersTab.style.display = 'none';
@@ -1472,27 +2002,67 @@
         // 页面加载时初始化
         updateUserUI();
         initTheme();
+        loadFieldMeta().then(() => loadViewLayoutConfig());
+
+        function toggleCustomRangeInputs() {
+            const isCustom = document.getElementById('ringsRange')?.value === 'custom';
+            const wrap = document.getElementById('ringsCustomRange');
+            if (wrap) {
+                wrap.style.display = isCustom ? 'inline-flex' : 'none';
+            }
+        }
+
+        document.getElementById('ringsRange').addEventListener('change', () => {
+            toggleCustomRangeInputs();
+            const workface = document.getElementById('workface').value || localStorage.getItem('selectedWorkface') || '30210';
+            loadRingsChart(workface);
+        });
+        document.getElementById('ringsStartDate').addEventListener('change', () => {
+            if (document.getElementById('ringsRange')?.value !== 'custom') return;
+            const workface = document.getElementById('workface').value || localStorage.getItem('selectedWorkface') || '30210';
+            loadRingsChart(workface);
+        });
+        document.getElementById('ringsEndDate').addEventListener('change', () => {
+            if (document.getElementById('ringsRange')?.value !== 'custom') return;
+            const workface = document.getElementById('workface').value || localStorage.getItem('selectedWorkface') || '30210';
+            loadRingsChart(workface);
+        });
+
+        (function initCustomRangeDefaults() {
+            const end = new Date();
+            const start = new Date(end);
+            start.setDate(end.getDate() - 6);
+            const fmt = (d) => d.toISOString().split('T')[0];
+            const startInput = document.getElementById('ringsStartDate');
+            const endInput = document.getElementById('ringsEndDate');
+            if (startInput && !startInput.value) startInput.value = fmt(start);
+            if (endInput && !endInput.value) endInput.value = fmt(end);
+            toggleCustomRangeInputs();
+        })();
         
         // 加载工作面列表
         async function loadWorkfaces() {
             const res = await fetch('/api/workfaces');
             const workfaces = await res.json();
+            currentWorkfaces = Array.isArray(workfaces) ? workfaces : [];
             
             const select = document.getElementById('workface');
             select.innerHTML = '<option value="">请选择工作面</option>';
-            workfaces.forEach(w => {
+            currentWorkfaces.forEach(w => {
                 select.innerHTML += `<option value="${w.id}">${w.name}</option>`;
             });
             
             // 恢复上次选择的工作面，如果没有则默认第一个
             const savedWorkface = localStorage.getItem('selectedWorkface');
-            if (savedWorkface && workfaces.find(w => w.id === savedWorkface)) {
+            if (savedWorkface && currentWorkfaces.find(w => w.id === savedWorkface)) {
                 select.value = savedWorkface;
-            } else if (workfaces.length > 0) {
-                select.value = workfaces[0].id;
-                localStorage.setItem('selectedWorkface', workfaces[0].id);
+            } else if (currentWorkfaces.length > 0) {
+                select.value = currentWorkfaces[0].id;
+                localStorage.setItem('selectedWorkface', currentWorkfaces[0].id);
             }
             
+            applyViewPermissions();
+
             // 加载数据
             if (select.value) {
                 loadRecords();
@@ -1504,6 +2074,7 @@
         async function onWorkfaceChange() {
             const workface = document.getElementById('workface').value;
             localStorage.setItem('selectedWorkface', workface);
+            applyViewPermissions();
             
             // 获取该工作面的最新日期
             const res = await fetch('/api/daily');

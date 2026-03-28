@@ -1,0 +1,21 @@
+[
+  {
+    "id": "c533e378-7936-4f7e-86f0-b402a846209a",
+    "date": "2026-03-23",
+    "suggestedRings": 6,
+    "actualNight": 5.5,
+    "actualMorning": 6,
+    "actualMiddle": 0,
+    "jiaoyunLane": "1250m",
+    "huifengLane": "1248m",
+    "deformationValue": 15,
+    "deformationNormalMin": 10,
+    "deformationNormalMax": 20,
+    "pressureCycle": "否",
+    "daysSincePressure": 4,
+    "hangingRoof": 3.2,
+    "surfaceSettlement": 25,
+    "remark": "",
+    "createdAt": "2026-03-23 02:07:14"
+  }
+]

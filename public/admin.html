@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 冲击地压综合风险研判系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+        
+        /* 登录页面 */
+        .login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .login-subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        .submit-btn:hover { transform: translateY(-2px); }
+        
+        /* 后台布局 */
+        .admin-layout { display: none; }
+        .admin-layout.active { display: flex; }
+        
+        .sidebar {
+            width: 240px;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            padding: 20px 0;
+        }
+        .logo {
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 10px;
+        }
+        .menu-item {
+            padding: 14px 20px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .menu-item:hover { background: #f8f9fa; color: #667eea; }
+        .menu-item.active {
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            color: #667eea;
+            border-right: 3px solid #667eea;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 24px; color: #333; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .user-info { color: #666; }
+        .logout-btn {
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        /* 仪表盘卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .stat-card .label { color: #666; font-size: 14px; margin-bottom: 8px; }
+        .stat-card .value { font-size: 32px; font-weight: 700; color: #333; }
+        .stat-card .value.blue { color: #667eea; }
+        .stat-card .value.green { color: #52c41a; }
+        .stat-card .value.orange { color: #fa8c16; }
+        .stat-card .value.red { color: #ff4d4f; }
+        
+        /* 表格样式 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+        th { background: #f8f9fa; font-weight: 600; color: #333; }
+        tr:hover { background: #fafafa; }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn-success { background: #52c41a; color: white; }
+        .btn:hover { opacity: 0.85; }
+        
+        /* 表单 */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .form-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .form-card input, .form-card select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .form-card input:focus, .form-card select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* 多选框 */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .checkbox-item input { width: auto; margin: 0; }
+        
+        /* 标签页内容 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* 搜索栏 */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 8px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { background: #52c41a; }
+        .toast.error { background: #ff4d4f; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        /* 删除确认弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal h3 { margin-bottom: 15px; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        
+        @media (max-width: 768px) {
+            .admin-layout { flex-direction: column; }
+            .sidebar { width: 100%; min-height: auto; }
+            .menu-item { padding: 12px 16px; }
+        }
+        
+        /* 深色模式 */
+        body.dark-mode {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .login-card {
+            background: #2d2d2d;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        body.dark-mode .login-subtitle {
+            color: #aaa;
+        }
+        
+        body.dark-mode .form-group label {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .form-group input {
+            background: #3d3d3d;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .form-group input:focus {
+            border-color: #8a93f5;
+            box-shadow: 0 0 0 3px rgba(138,147,245,0.2);
+        }
+        
+        body.dark-mode .sidebar {
+            background: #2d2d2d;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+        
+        body.dark-mode .logo {
+            color: #8a93f5;
+            border-bottom-color: #444;
+        }
+        
+        body.dark-mode .menu-item {
+            color: #ccc;
+        }
+        
+        body.dark-mode .menu-item:hover {
+            background: #3d3d3d;
+            color: #8a93f5;
+        }
+        
+        body.dark-mode .menu-item.active {
+            background: linear-gradient(135deg, rgba(138,147,245,0.2) 0%, rgba(138,147,245,0.1) 100%);
+            color: #8a93f5;
+        }
+        
+        body.dark-mode .header h1 {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .user-info {
+            color: #ccc;
+        }
+        
+        body.dark-mode .stat-card {
+            background: #2d2d2d;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        body.dark-mode .stat-card .label {
+            color: #aaa;
+        }
+        
+        body.dark-mode .stat-card .value {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .card {
+            background: #2d2d2d;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        body.dark-mode .card-title {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode th {
+            background: #3d3d3d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode tr:hover {
+            background: #3d3d3d;
+        }
+        
+        body.dark-mode .form-card {
+            background: #2d2d2d;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        body.dark-mode .form-card input,
+        body.dark-mode .form-card select {
+            background: #3d3d3d;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .form-card input:focus,
+        body.dark-mode .form-card select:focus {
+            border-color: #8a93f5;
+        }
+        
+        body.dark-mode .checkbox-item {
+            background: #3d3d3d;
+        }
+        
+        body.dark-mode .toast {
+            background: #3d3d3d;
+        }
+        
+        body.dark-mode .modal {
+            background: #2d2d2d;
+        }
+        
+        body.dark-mode .empty-state {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div class="login-page" id="loginPage">
+        <div class="login-card">
+            <div class="login-title">⚙️ 管理后台</div>
+            <div class="login-subtitle">冲击地压综合风险研判系统</div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="loginUsername" placeholder="请输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="submit-btn">登 录</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 后台布局 -->
+    <div class="admin-layout" id="adminLayout">
+        <div class="sidebar">
+            <div class="logo">🏢 管理后台</div>
+            <div class="menu-item active" data-tab="dashboard">📊 数据概览</div>
+            <div class="menu-item" data-tab="users">👥 用户管理</div>
+            <div class="menu-item" data-tab="data">📝 数据管理</div>
+            <div class="menu-item" data-tab="settings">⚙️ 栏目配置</div>
+            <div class="menu-item" data-tab="workfaces">🏗️ 工作面配置</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1 id="pageTitle">数据概览</h1>
+                <div class="header-right">
+                    <button class="theme-toggle" onclick="toggleTheme()" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 15px;">🌙 夜间模式</button>
+                    <span class="user-info">👤 <span id="currentUser"></span></span>
+                    <button class="logout-btn" onclick="logout()">退出登录</button>
+                </div>
+            </div>
+            
+            <!-- 数据概览 -->
+            <div class="tab-content active" id="tab-dashboard">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">总用户数</div>
+                        <div class="value blue" id="statUsers">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">今日记录数</div>
+                        <div class="value green" id="statToday">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">本月记录数</div>
+                        <div class="value orange" id="statMonth">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">总记录数</div>
+                        <div class="value red" id="statTotal">-</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">📋 最近记录</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>班次</th>
+                                <th>记录人</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentRecords"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 用户管理 -->
+            <div class="tab-content" id="tab-users">
+                <div class="card">
+                    <div class="card-title">➕ 添加用户</div>
+                    <div class="form-row">
+                        <div>
+                            <label>用户名</label>
+                            <input type="text" id="newUsername" placeholder="请输入用户名">
+                        </div>
+                        <div>
+                            <label>密码</label>
+                            <input type="password" id="newPassword" placeholder="请输入密码">
+                        </div>
+                        <div>
+                            <label>角色</label>
+                            <select id="newRole">
+                                <option value="user">📝 填写用户（可填写数据）</option>
+                                <option value="viewer">👁️ 查看用户（仅查看数据）</option>
+                                <option value="admin">👑 管理员</option>
+                            </select>
+                        </div>
+                    </div>
+                    <label style="display:block;margin-bottom:10px;font-weight:600;">可访问工作面（多选）- 请先选择工作面</label>
+                    <div class="checkbox-group" id="workfaceCheckboxes"></div>
+                    <label style="display:block;margin-bottom:10px;font-weight:600;margin-top:20px;">可填写栏目（多选）- 根据工作面类型自动筛选</label>
+                    <div class="checkbox-group" id="fieldCheckboxes"></div>
+                    <button class="btn btn-primary" onclick="addUser()">添加用户</button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">👥 用户列表</div>
+                    <div class="search-bar">
+                        <input type="text" id="userSearch" placeholder="搜索用户名..." oninput="filterUsers()">
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>可访问工作面</th>
+                                <th>可填写栏目</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userList"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 数据管理 -->
+            <div class="tab-content" id="tab-data">
+                <div class="card">
+                    <div class="card-title">📝 每日记录列表</div>
+                    <div class="search-bar">
+                        <input type="date" id="dataDateStart">
+                        <span style="align-self:center;">至</span>
+                        <input type="date" id="dataDateEnd">
+                        <button class="btn btn-primary" onclick="loadRecords()">搜索</button>
+                        <button class="btn btn-success" onclick="exportData()">导出Excel</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>班次</th>
+                                <th>记录人</th>
+                                <th>填写栏目数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordList"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 栏目配置 -->
+            <div class="tab-content" id="tab-settings">
+                <div class="card">
+                    <div class="card-title">➕ 添加栏目</div>
+                    <div class="form-row">
+                        <div>
+                            <label>字段ID（英文）</label>
+                            <input type="text" id="newFieldId" placeholder="如: customField">
+                        </div>
+                        <div>
+                            <label>显示名称（中文）</label>
+                            <input type="text" id="newFieldName" placeholder="如: 自定义字段">
+                        </div>
+                        <div>
+                            <label>分组</label>
+                            <select id="newFieldGroup">
+                                <option value="采煤">采煤工作面</option>
+                                <option value="掘进">掘进工作面</option>
+                                <option value="共用">共用</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>部门</label>
+                            <input type="text" id="newFieldDept" placeholder="如: 综采队">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addField()">添加栏目</button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">📋 栏目列表</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>字段ID</th>
+                                <th>显示名称</th>
+                                <th>分组</th>
+                                <th>部门</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fieldList"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 工作面配置 -->
+            <div class="tab-content" id="tab-workfaces">
+                <div class="card">
+                    <div class="card-title">➕ 添加工作面</div>
+                    <div class="form-row">
+                        <div>
+                            <label>工作面ID</label>
+                            <input type="text" id="newWorkfaceId" placeholder="如: 30210">
+                        </div>
+                        <div>
+                            <label>工作面名称</label>
+                            <input type="text" id="newWorkfaceName" placeholder="如: 30210工作面">
+                        </div>
+                        <div>
+                            <label>工作面类型</label>
+                            <select id="newWorkfaceType">
+                                <option value="采煤">采煤工作面</option>
+                                <option value="掘进">掘进工作面</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addWorkface()">添加工作面</button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">🏗️ 工作面列表</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>工作面ID</th>
+                                <th>名称</th>
+                                <th>类型</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workfaceList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑用户弹窗 -->
+    <div class="modal-overlay" id="editUserModal">
+        <div class="modal" style="max-width:500px;">
+            <h3>✏️ 编辑用户</h3>
+            <input type="hidden" id="editUserId">
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;font-weight:500;">用户名</label>
+                <input type="text" id="editUsername" readonly style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;background:#f5f5f5;">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;font-weight:500;">新密码（不修改则留空）</label>
+                <input type="password" id="editPassword" placeholder="请输入新密码" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;font-weight:500;">角色</label>
+                <select id="editRole" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;">
+                    <option value="user">📝 填写用户（可填写数据）</option>
+                    <option value="viewer">👁️ 查看用户（仅查看数据）</option>
+                    <option value="admin">👑 管理员</option>
+                </select>
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;font-weight:500;">可访问工作面（多选）- 请先选择工作面</label>
+                <div class="checkbox-group" id="editWorkfaceCheckboxes" style="max-height:150px;overflow-y:auto;"></div>
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;font-weight:500;">可填写栏目（多选）- 根据工作面类型自动筛选</label>
+                <div class="checkbox-group" id="editFieldCheckboxes" style="max-height:150px;overflow-y:auto;"></div>
+            </div>
+            <div class="modal-btns">
+                <button class="btn" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveUser()">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 删除确认弹窗 -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h3>⚠️ 确认删除</h3>
+            <p id="deleteMsg">确定要删除这条记录吗？此操作不可恢复。</p>
+            <div class="modal-btns">
+                <button class="btn" onclick="closeModal()">取消</button>
+                <button class="btn btn-danger" id="confirmDelete">确定删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let allUsers = [];
+        let allRecords = [];
+        let fieldConfig = {};
+
+        function getAdminHeaders() {
+            const token = localStorage.getItem('adminToken');
+            return token ? { Authorization: `Bearer ${token}` } : {};
+        }
+
+        async function adminFetch(url, options = {}) {
+            const headers = { ...(options.headers || {}), ...getAdminHeaders() };
+            return fetch(url, { ...options, headers });
+        }
+        
+        // 初始化
+        async function init() {
+            const token = localStorage.getItem('adminToken');
+            const username = localStorage.getItem('adminUser');
+            if (token && username) {
+                try {
+                    const res = await adminFetch('/api/users');
+                    const users = await res.json();
+                    const user = users.find(u => u.username === username);
+                    if (user && user.role === 'admin') {
+                        currentUser = user;
+                        showAdmin();
+                        return;
+                    }
+                } catch(e) {}
+            }
+            showLogin();
+        }
+        
+        function showLogin() {
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('adminLayout').classList.remove('active');
+        }
+        
+        function showAdmin() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('adminLayout').classList.add('active');
+            document.getElementById('currentUser').textContent = currentUser.username;
+            loadDashboard();
+            loadUsers();
+            loadRecords();
+            loadFields();
+            loadWorkfaces();
+            renderFieldCheckboxes();
+            renderWorkfaceCheckboxes();
+        }
+        
+        // 登录
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const res = await fetch('/api/users/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.user.role === 'admin') {
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminUser', username);
+                    currentUser = data.user;
+                    showAdmin();
+                    showToast('登录成功', 'success');
+                } else {
+                    showToast('只有管理员才能登录后台', 'error');
+                }
+            } else {
+                showToast('用户名或密码错误', 'error');
+            }
+        };
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            currentUser = null;
+            showLogin();
+            showToast('已退出登录');
+        }
+        
+        // 菜单切换
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.onclick = () => {
+                document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                const tab = item.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.getElementById('tab-' + tab).classList.add('active');
+                document.getElementById('pageTitle').textContent = item.textContent.trim();
+                
+                // 根据点击的菜单刷新对应数据
+                if (tab === 'dashboard') {
+                    loadDashboard();
+                } else if (tab === 'users') {
+                    loadUsers();
+                } else if (tab === 'data') {
+                    loadRecords();
+                } else if (tab === 'settings') {
+                    loadFields();
+                } else if (tab === 'workfaces') {
+                    loadWorkfaces();
+                }
+            };
+        });
+        
+        // 数据概览
+        async function loadDashboard() {
+            // 获取用户数
+            const usersRes = await adminFetch('/api/users');
+            const users = await usersRes.json();
+            document.getElementById('statUsers').textContent = users.length;
+            
+            // 获取记录
+            const recordsRes = await adminFetch('/api/records');
+            const records = await recordsRes.json();
+            allRecords = records;
+            
+            const today = new Date().toISOString().slice(0, 10);
+            const thisMonth = today.slice(0, 7);
+            
+            const todayRecords = records.filter(r => r.date === today);
+            const monthRecords = records.filter(r => r.date.startsWith(thisMonth));
+            
+            document.getElementById('statToday').textContent = todayRecords.length;
+            document.getElementById('statMonth').textContent = monthRecords.length;
+            document.getElementById('statTotal').textContent = records.length;
+            
+            // 最近记录
+            const recent = records.slice(-10).reverse();
+            document.getElementById('recentRecords').innerHTML = recent.map(r => `
+                <tr>
+                    <td>${r.date}</td>
+                    <td>${r.shift || '-'}</td>
+                    <td>${r.username || '-'}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteRecord('${r.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="empty-state">暂无记录</td></tr>';
+        }
+        
+        // 用户管理
+        async function loadUsers() {
+            const res = await adminFetch('/api/users');
+            allUsers = await res.json();
+            renderUserList(allUsers);
+        }
+        
+        function renderUserList(users) {
+            const getFieldsDisplay = (fields) => {
+                if (!fields) return '-';
+                if (typeof fields === 'string') {
+                    // 转换字段名为中文
+                    const fieldMap = {
+                        'suggestedRings': '建议刀数',
+                        'actualNight': '夜班刀数',
+                        'actualMorning': '早班刀数',
+                        'actualMiddle': '中班刀数',
+                        'jiaoyunLane': '胶运巷位置',
+                        'huifengLane': '回风巷位置',
+                        'deformationValue': '变形监测',
+                        'pressureCycle': '周期来压',
+                        'hangingRoof': '悬顶情况',
+                        'surfaceSettlement': '沉降情况',
+                        'conclusion': '综合结论'
+                    };
+                    return fields.split(',').map(f => fieldMap[f] || f).join(', ');
+                }
+                if (Array.isArray(fields)) {
+                    const fieldMap = {
+                        'suggestedRings': '建议刀数',
+                        'actualNight': '夜班刀数',
+                        'actualMorning': '早班刀数',
+                        'actualMiddle': '中班刀数',
+                        'jiaoyunLane': '胶运巷位置',
+                        'huifengLane': '回风巷位置',
+                        'deformationValue': '变形监测',
+                        'pressureCycle': '周期来压',
+                        'hangingRoof': '悬顶情况',
+                        'surfaceSettlement': '沉降情况',
+                        'conclusion': '综合结论'
+                    };
+                    return fields.map(f => fieldMap[f] || f).join(', ');
+                }
+                return '-';
+            };
+            
+            const getWorkfacesDisplay = (workface) => {
+                if (!workface) return '-';
+                if (typeof workface === 'string') {
+                    return workface.split(',').filter(w => w).join(', ');
+                }
+                if (Array.isArray(workface)) {
+                    return workface.join(', ');
+                }
+                return '-';
+            };
+            
+            document.getElementById('userList').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.role === 'admin' ? '👑 管理员' : (u.role === 'viewer' ? '👁️ 查看用户' : '📝 填写用户')}</td>
+                    <td>${getWorkfacesDisplay(u.workface)}</td>
+                    <td>${getFieldsDisplay(u.fields)}</td>
+                    <td>
+                        ${u.username !== 'admin' ? `<button class="btn btn-primary" onclick="editUser('${u.id}')" style="padding:6px 12px;">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteUser('${u.id}')" style="padding:6px 12px;">删除</button>` : ''}
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="empty-state">暂无用户</td></tr>';
+        }
+        
+        function filterUsers() {
+            const keyword = document.getElementById('userSearch').value.toLowerCase();
+            const filtered = allUsers.filter(u => u.username.toLowerCase().includes(keyword));
+            renderUserList(filtered);
+        }
+        
+        // 存储所有工作面信息
+        let allWorkfaces = [];
+        
+        async function renderFieldCheckboxes(selectedWorkfaceIds = []) {
+            const res = await fetch('/api/fields');
+            fieldConfig = await res.json();
+            
+            // 获取所有工作面信息
+            const wfRes = await fetch('/api/workfaces');
+            allWorkfaces = await wfRes.json();
+            
+            // 确定需要显示的栏目分组
+            let allowedGroups = new Set();
+            if (selectedWorkfaceIds.length > 0) {
+                selectedWorkfaceIds.forEach(wfId => {
+                    const workface = allWorkfaces.find(w => w.id === wfId);
+                    if (workface) {
+                        // 工作面对应的栏目分组
+                        allowedGroups.add(workface.type);
+                    }
+                });
+            }
+            // 始终添加"共用"分组
+            allowedGroups.add('共用');
+            
+            let html = '';
+            for (const [key, val] of Object.entries(fieldConfig)) {
+                // 如果选择了工作面，只显示对应分组的栏目（包括共用）
+                if (allowedGroups.size > 0 && val.group && !allowedGroups.has(val.group)) {
+                    continue;
+                }
+                html += `<label class="checkbox-item">
+                    <input type="checkbox" value="${key}" class="field-checkbox">
+                    ${val.name}
+                </label>`;
+            }
+            document.getElementById('fieldCheckboxes').innerHTML = html;
+        }
+        
+        async function renderWorkfaceCheckboxes() {
+            const res = await fetch('/api/workfaces');
+            const workfaces = await res.json();
+            allWorkfaces = workfaces;
+            
+            let html = '';
+            for (const wf of workfaces) {
+                html += `<label class="checkbox-item">
+                    <input type="checkbox" value="${wf.id}" class="workface-checkbox" onchange="handleWorkfaceChange()">
+                    ${wf.name} (${wf.type})
+                </label>`;
+            }
+            document.getElementById('workfaceCheckboxes').innerHTML = html;
+        }
+        
+        // 处理工作面选择变化
+        async function handleWorkfaceChange() {
+            const selectedWorkfaces = Array.from(document.querySelectorAll('.workface-checkbox:checked')).map(cb => cb.value);
+            await renderFieldCheckboxes(selectedWorkfaces);
+        }
+        
+        async function addUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            
+            if (!username || !password) {
+                showToast('请填写用户名和密码', 'error');
+                return;
+            }
+            
+            const fields = Array.from(document.querySelectorAll('.field-checkbox:checked')).map(cb => cb.value);
+            const workfaces = Array.from(document.querySelectorAll('.workface-checkbox:checked')).map(cb => cb.value).join(',');
+            
+            const res = await adminFetch('/api/users', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password, role, fields, workface: workfaces})
+            });
+            
+            if (res.ok) {
+                showToast('用户添加成功', 'success');
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                loadUsers();
+            } else {
+                showToast('添加失败，用户名可能已存在', 'error');
+            }
+        }
+        
+        async function deleteUser(id) {
+            if (!confirm('确定删除该用户？')) return;
+            const res = await adminFetch('/api/users/' + id, {method: 'DELETE'});
+            if (res.ok) {
+                showToast('用户已删除', 'success');
+                loadUsers();
+            } else {
+                showToast('删除失败', 'error');
+            }
+        }
+        
+        // 编辑用户
+        async function editUser(id) {
+            const user = allUsers.find(u => u.id === id);
+            if (!user) return;
+            
+            document.getElementById('editUserId').value = id;
+            document.getElementById('editUsername').value = user.username;
+            document.getElementById('editPassword').value = '';
+            document.getElementById('editRole').value = user.role || 'user';
+            
+            // 加载工作面选项
+            const workfacesRes = await fetch('/api/workfaces');
+            const workfaces = await workfacesRes.json();
+            allWorkfaces = workfaces;
+            
+            let userWorkfaces = user.workface || '';
+            if (typeof userWorkfaces === 'string') {
+                userWorkfaces = userWorkfaces.split(',').filter(w => w);
+            }
+            
+            let workfaceHtml = '';
+            for (const wf of workfaces) {
+                const checked = userWorkfaces.includes(wf.id) ? 'checked' : '';
+                workfaceHtml += `<label class="checkbox-item">
+                    <input type="checkbox" value="${wf.id}" class="edit-workface-checkbox" ${checked} onchange="handleEditWorkfaceChange()">
+                    ${wf.name} (${wf.type})
+                </label>`;
+            }
+            document.getElementById('editWorkfaceCheckboxes').innerHTML = workfaceHtml;
+            
+            // 加载栏目选项（根据工作面类型过滤）
+            await renderEditFieldCheckboxes(userWorkfaces, user.fields);
+            
+            document.getElementById('editUserModal').classList.add('active');
+        }
+        
+        // 渲染编辑用户时的栏目选项
+        async function renderEditFieldCheckboxes(selectedWorkfaceIds = [], userFields = []) {
+            const res = await fetch('/api/fields');
+            const fields = await res.json();
+            
+            // 确定需要显示的栏目分组
+            let allowedGroups = new Set();
+            if (selectedWorkfaceIds.length > 0) {
+                selectedWorkfaceIds.forEach(wfId => {
+                    const workface = allWorkfaces.find(w => w.id === wfId);
+                    if (workface) {
+                        allowedGroups.add(workface.type);
+                    }
+                });
+            }
+            // 始终添加"共用"分组
+            allowedGroups.add('共用');
+            
+            // 处理用户已有字段
+            let existingFields = userFields || [];
+            if (typeof existingFields === 'string') {
+                existingFields = existingFields.split(',').filter(f => f);
+            }
+            
+            let html = '';
+            for (const [key, val] of Object.entries(fields)) {
+                // 如果选择了工作面，只显示对应分组的栏目（包括共用）
+                if (allowedGroups.size > 0 && val.group && !allowedGroups.has(val.group)) {
+                    continue;
+                }
+                const checked = existingFields.includes(key) ? 'checked' : '';
+                html += `<label class="checkbox-item">
+                    <input type="checkbox" value="${key}" class="edit-field-checkbox" ${checked}>
+                    ${val.name}
+                </label>`;
+            }
+            document.getElementById('editFieldCheckboxes').innerHTML = html;
+        }
+        
+        // 处理编辑用户时工作面选择变化
+        async function handleEditWorkfaceChange() {
+            const selectedWorkfaces = Array.from(document.querySelectorAll('.edit-workface-checkbox:checked')).map(cb => cb.value);
+            await renderEditFieldCheckboxes(selectedWorkfaces);
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editUserModal').classList.remove('active');
+        }
+        
+        async function saveUser() {
+            const id = document.getElementById('editUserId').value;
+            const password = document.getElementById('editPassword').value;
+            const role = document.getElementById('editRole').value;
+            const fields = Array.from(document.querySelectorAll('.edit-field-checkbox:checked')).map(cb => cb.value);
+            const workfaces = Array.from(document.querySelectorAll('.edit-workface-checkbox:checked')).map(cb => cb.value).join(',');
+            
+            const updateData = { role, fields, workface: workfaces };
+            if (password) {
+                updateData.password = password;
+            }
+            
+            const res = await adminFetch('/api/users/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updateData)
+            });
+            
+            if (res.ok) {
+                showToast('用户更新成功', 'success');
+                closeEditModal();
+                loadUsers();
+            } else {
+                showToast('更新失败', 'error');
+            }
+        }
+        
+        // 数据管理
+        async function loadRecords() {
+            const recordsRes = await adminFetch('/api/records');
+            allRecords = await recordsRes.json();
+
+            const startDate = document.getElementById('dataDateStart').value;
+            const endDate = document.getElementById('dataDateEnd').value;
+            
+            let records = [...allRecords];
+            if (startDate) records = records.filter(r => r.date >= startDate);
+            if (endDate) records = records.filter(r => r.date <= endDate);
+            
+            document.getElementById('recordList').innerHTML = records.reverse().map(r => {
+                const fieldCount = r.data ? Object.keys(r.data).length : 0;
+                return `<tr>
+                    <td>${r.date}</td>
+                    <td>${r.shift || '-'}</td>
+                    <td>${r.username || '-'}</td>
+                    <td>${fieldCount}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteRecord('${r.id}')">删除</button>
+                    </td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="5" class="empty-state">暂无记录</td></tr>';
+        }
+        
+        async function deleteRecord(id) {
+            document.getElementById('deleteMsg').textContent = '确定要删除这条记录吗？此操作不可恢复。';
+            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('confirmDelete').onclick = async () => {
+                const res = await adminFetch('/api/records/' + id, {method: 'DELETE'});
+                closeModal();
+                if (res.ok) {
+                    showToast('记录已删除', 'success');
+                    loadDashboard();
+                    loadRecords();
+                } else {
+                    showToast('删除失败', 'error');
+                }
+            };
+        }
+        
+        function closeModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+        
+        function exportData() {
+            let csv = '日期,班次,记录人,栏目数\n';
+            allRecords.forEach(r => {
+                const fieldCount = r.data ? Object.keys(r.data).length : 0;
+                csv += `${r.date},${r.shift || ''},${r.username || ''},${fieldCount}\n`;
+            });
+            
+            const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `进尺记录_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+        
+        // 栏目配置
+        async function loadFields() {
+            const res = await fetch('/api/fields');
+            const fields = await res.json();
+            
+            let index = 1;
+            document.getElementById('fieldList').innerHTML = Object.entries(fields).map(([key, val]) => `
+                <tr>
+                    <td><input type="number" id="sort-${key}" value="${val.sort || index}" style="width:60px;padding:6px;text-align:center;"></td>
+                    <td>${key}</td>
+                    <td><input type="text" id="name-${key}" value="${val.name}" style="width:120px;padding:6px;"></td>
+                    <td>
+                        <select id="group-${key}" style="width:120px;padding:6px;">
+                            <option value="采煤" ${val.group === '采煤' ? 'selected' : ''}>采煤工作面</option>
+                            <option value="掘进" ${val.group === '掘进' ? 'selected' : ''}>掘进工作面</option>
+                            <option value="共用" ${val.group === '共用' ? 'selected' : ''}>共用</option>
+                        </select>
+                    </td>
+                    <td><input type="text" id="dept-${key}" value="${val.dept || ''}" style="width:100px;padding:6px;"></td>
+                    <td>
+                        <button class="btn btn-primary" onclick="updateField('${key}')" style="padding:6px 12px;">保存</button>
+                        <button class="btn btn-danger" onclick="deleteField('${key}')" style="padding:6px 12px;">删除</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6" class="empty-state">暂无栏目</td></tr>';
+        }
+        
+        async function addField() {
+            const fieldId = document.getElementById('newFieldId').value.trim();
+            const name = document.getElementById('newFieldName').value.trim();
+            const group = document.getElementById('newFieldGroup').value;
+            const dept = document.getElementById('newFieldDept').value.trim();
+            
+            if (!fieldId || !name) {
+                showToast('字段ID和名称不能为空', 'error');
+                return;
+            }
+            
+            const res = await adminFetch('/api/fields', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({fieldId, name, group, dept})
+            });
+            
+            if (res.ok) {
+                showToast('栏目添加成功', 'success');
+                document.getElementById('newFieldId').value = '';
+                document.getElementById('newFieldName').value = '';
+                document.getElementById('newFieldGroup').value = '';
+                document.getElementById('newFieldDept').value = '';
+                loadFields();
+            } else {
+                const data = await res.json();
+                showToast(data.error || '添加失败', 'error');
+            }
+        }
+        
+        async function updateField(fieldId) {
+            const name = document.getElementById('name-' + fieldId).value.trim();
+            const group = document.getElementById('group-' + fieldId).value.trim();
+            const dept = document.getElementById('dept-' + fieldId).value.trim();
+            const sort = parseInt(document.getElementById('sort-' + fieldId).value) || 0;
+            
+            const res = await adminFetch('/api/fields/' + fieldId, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, group, dept, sort})
+            });
+            
+            if (res.ok) {
+                showToast('栏目更新成功', 'success');
+                loadFields();
+            } else {
+                showToast('更新失败', 'error');
+            }
+        }
+        
+        async function deleteField(fieldId) {
+            if (!confirm('确定删除该栏目？删除后所有相关数据可能会丢失！')) return;
+            
+            const res = await adminFetch('/api/fields/' + fieldId, {method: 'DELETE'});
+            if (res.ok) {
+                showToast('栏目已删除', 'success');
+                loadFields();
+            } else {
+                showToast('删除失败', 'error');
+            }
+        }
+        
+        // 工作面管理
+        async function loadWorkfaces() {
+            const res = await fetch('/api/workfaces');
+            const workfaces = await res.json();
+            
+            document.getElementById('workfaceList').innerHTML = workfaces.map(w => `
+                <tr>
+                    <td>${w.id}</td>
+                    <td><input type="text" id="wf-name-${w.id}" value="${w.name}" style="width:150px;padding:6px;"></td>
+                    <td>
+                        <select id="wf-type-${w.id}" style="width:120px;padding:6px;">
+                            <option value="采煤" ${w.type === '采煤' ? 'selected' : ''}>采煤工作面</option>
+                            <option value="掘进" ${w.type === '掘进' ? 'selected' : ''}>掘进工作面</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick="updateWorkface('${w.id}')" style="padding:6px 12px;">保存</button>
+                        <button class="btn btn-danger" onclick="deleteWorkface('${w.id}')" style="padding:6px 12px;">删除</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="empty-state">暂无工作面</td></tr>';
+        }
+        
+        async function addWorkface() {
+            const id = document.getElementById('newWorkfaceId').value.trim();
+            const name = document.getElementById('newWorkfaceName').value.trim();
+            const type = document.getElementById('newWorkfaceType').value;
+            
+            if (!id || !name) {
+                showToast('工作面ID和名称不能为空', 'error');
+                return;
+            }
+            
+            const res = await adminFetch('/api/workfaces', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id, name, type})
+            });
+            
+            if (res.ok) {
+                showToast('工作面添加成功', 'success');
+                document.getElementById('newWorkfaceId').value = '';
+                document.getElementById('newWorkfaceName').value = '';
+                loadWorkfaces();
+            } else {
+                const data = await res.json();
+                showToast(data.error || '添加失败', 'error');
+            }
+        }
+        
+        async function updateWorkface(id) {
+            const name = document.getElementById('wf-name-' + id).value.trim();
+            const type = document.getElementById('wf-type-' + id).value;
+            
+            const res = await adminFetch('/api/workfaces/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, type})
+            });
+            
+            if (res.ok) {
+                showToast('工作面更新成功', 'success');
+                loadWorkfaces();
+            } else {
+                showToast('更新失败', 'error');
+            }
+        }
+        
+        async function deleteWorkface(id) {
+            if (!confirm('确定删除该工作面？')) return;
+            
+            const res = await adminFetch('/api/workfaces/' + id, {method: 'DELETE'});
+            if (res.ok) {
+                showToast('工作面已删除', 'success');
+                loadWorkfaces();
+            } else {
+                showToast('删除失败', 'error');
+            }
+        }
+        
+        // 提示
+        function showToast(msg, type = '') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // 主题切换
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            const theme = isDark ? 'dark' : 'light';
+            localStorage.setItem('theme', theme);
+            document.querySelector('.theme-toggle').textContent = isDark ? '☀️ 白天模式' : '🌙 夜间模式';
+        }
+        
+        // 初始化主题
+        function initTheme() {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (document.querySelector('.theme-toggle')) {
+                    document.querySelector('.theme-toggle').textContent = '☀️ 白天模式';
+                }
+            }
+        }
+        
+        // 页面加载时初始化主题
+        window.onload = function() {
+            initTheme();
+        };
+        
+        init();
+    </script>
+</body>
+</html>

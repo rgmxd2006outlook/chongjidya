@@ -1,0 +1,21 @@
+{
+  "name": "daily_report",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "migrate:mysql": "node scripts/migrate-sqlite-to-mysql.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "mysql2": "^3.20.0",
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^6.0.1",
+    "uuid": "^13.0.0"
+  }
+}

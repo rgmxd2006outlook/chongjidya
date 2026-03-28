@@ -1,0 +1,41 @@
+[
+  {
+    "id": "f457bdb2-c69e-4f2f-996e-fbbf864e0f93",
+    "username": "admin",
+    "password": "102184",
+    "role": "admin",
+    "workface": "30210,30102",
+    "name": "管理员",
+    "fields": "suggestedRings,actualNight,actualMorning,actualMiddle,jiaoyunLane,huifengLane,deformationValue,pressureCycle,hangingRoof,surfaceSettlement,conclusion"
+  },
+  {
+    "id": "ba9d363b-daa5-4911-9612-5c68d55358d7",
+    "username": "wxh",
+    "password": "123456",
+    "role": "user",
+    "workface": "",
+    "fields": [
+      "suggestedRings",
+      "conclusion"
+    ],
+    "name": "wxh"
+  },
+  {
+    "id": "d5a4afcd-d1ee-45a2-845e-78836520493d",
+    "username": "jcy",
+    "password": "123456",
+    "role": "user",
+    "workface": "",
+    "fields": [
+      "actualNight",
+      "actualMorning",
+      "actualMiddle",
+      "jiaoyunLane",
+      "huifengLane",
+      "deformationValue",
+      "pressureCycle",
+      "hangingRoof"
+    ],
+    "name": "jcy"
+  }
+]

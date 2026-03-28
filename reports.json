@@ -1,0 +1,32 @@
+{
+  "reports": [
+    {
+      "id": "7258773a-fbd3-4f37-b847-c6fba7a3771d",
+      "date": "2026-03-22",
+      "shift": "夜班",
+      "rings": 7,
+      "person": "张三",
+      "remark": "",
+      "createdAt": "2026-03-23 00:00:42"
+    },
+    {
+      "id": "2db512d9-a957-49b4-8e07-ae30a8af0d2b",
+      "date": "2026-03-23",
+      "shift": "早班",
+      "rings": 6,
+      "remark": "测试",
+      "createdAt": "2026-03-22 23:55:57"
+    },
+    {
+      "id": "d7eabf17-069b-4cf3-bf0b-edefff7f2326",
+      "date": "2026-03-23",
+      "project": "测试项目",
+      "workContent": "完成了每日报表系统的开发",
+      "progress": "100%",
+      "issues": "",
+      "tomorrow": "",
+      "hours": 8,
+      "createdAt": "2026-03-22 22:53:45"
+    }
+  ]
+}

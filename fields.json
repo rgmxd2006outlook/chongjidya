@@ -1,0 +1,67 @@
+{
+  "suggestedRings": {
+    "name": "建议刀数",
+    "group": "生产组织",
+    "dept": "防冲管理部"
+  },
+  "actualNight": {
+    "name": "夜班刀数",
+    "group": "实际刀数",
+    "dept": "综采队"
+  },
+  "actualMorning": {
+    "name": "早班刀数",
+    "group": "实际刀数",
+    "dept": "综采队"
+  },
+  "actualMiddle": {
+    "name": "中班刀数",
+    "group": "实际刀数",
+    "dept": "综采队"
+  },
+  "jiaoyunLane": {
+    "name": "胶运巷位置",
+    "group": "工作面位置",
+    "dept": "综采队"
+  },
+  "huifengLane": {
+    "name": "回风巷位置",
+    "group": "工作面位置",
+    "dept": "综采队"
+  },
+  "deformationValue": {
+    "name": "变形监测",
+    "group": "变形监测",
+    "dept": "监测员"
+  },
+  "pressureCycle": {
+    "name": "周期来压",
+    "group": "周期来压",
+    "dept": "防冲管理部"
+  },
+  "hangingRoof": {
+    "name": "悬顶情况",
+    "group": "悬顶情况",
+    "dept": "综采队"
+  },
+  "surfaceSettlement": {
+    "name": "沉降情况",
+    "group": "地表沉降",
+    "dept": "地测部"
+  },
+  "conclusion": {
+    "name": "综合结论",
+    "group": "综合结论",
+    "dept": "防冲管理部"
+  },
+  "dailyMaxRings": {
+    "name": "当日最大刀数",
+    "group": "生产组织",
+    "dept": "监测员"
+  },
+  "shiftMaxRings": {
+    "name": "单班最大刀数",
+    "group": "生产组织",
+    "dept": "监测员"
+  }
+}
